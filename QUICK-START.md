@@ -232,3 +232,4 @@ A: Không cần ngay. Phần 1-3 là lý thuyết. Từ Phần 4 nên có Miniku
 
 > "The best way to learn Kubernetes is by breaking things and fixing them." 💪
 
+

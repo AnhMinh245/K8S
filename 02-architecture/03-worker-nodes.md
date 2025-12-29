@@ -572,3 +572,4 @@ Bạn đã hoàn thành **Phần 2: Architecture**! 🎉
 
 [⬅️ 2.2. Control Plane](./02-control-plane.md) | [⬆️ Phần 2](./README.md) | [🏠 Mục Lục Chính](../README.md)
 
+

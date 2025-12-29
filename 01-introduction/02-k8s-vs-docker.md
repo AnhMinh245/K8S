@@ -503,3 +503,4 @@ Chúng ta sẽ đi sâu vào các use cases cụ thể và decision framework.
 
 [⬅️ 1.1. Kubernetes Là Gì?](./01-what-is-kubernetes.md) | [⬆️ Về Phần 1: Introduction](./README.md) | [🏠 Mục Lục Chính](../README.md)
 
+

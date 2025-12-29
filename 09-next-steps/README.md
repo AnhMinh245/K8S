@@ -26,3 +26,4 @@ Bạn đã hoàn thành khóa học Kubernetes cơ bản! 🎉
 
 [⬅️ Phần 8](../08-high-availability/README.md) | [🏠 Mục Lục Chính](../README.md)
 
+

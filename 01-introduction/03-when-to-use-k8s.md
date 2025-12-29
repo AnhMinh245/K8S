@@ -670,3 +670,4 @@ Chúng ta sẽ đi sâu vào kiến trúc của Kubernetes, hiểu cách nó ho�
 
 [⬅️ 1.2. K8s vs Docker](./02-k8s-vs-docker.md) | [⬆️ Về Phần 1: Introduction](./README.md) | [🏠 Mục Lục Chính](../README.md)
 
+

@@ -383,3 +383,4 @@ Hoặc nếu đã biết cơ bản:
 
 > "Kubernetes is not rocket science, it's container orchestration science!" 🚢
 
+
