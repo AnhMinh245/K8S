@@ -255,13 +255,14 @@ Persistent data trong môi trường container
 ### 🔴 Advanced (Nâng Cao)
 **Mục tiêu:** Production operations, security, advanced features
 
-15. RBAC và Security
-16. Network Policies
-17. Helm charts
-18. CI/CD với K8s
-19. Monitoring & Logging (Prometheus, Grafana, ELK)
-20. Service Mesh (Istio)
-21. GitOps (ArgoCD, Flux)
+15. **Phần 10: Observability Fundamentals** (nếu làm DevOps/SRE)
+16. RBAC và Security
+17. Network Policies
+18. Helm charts
+19. CI/CD với K8s
+20. Monitoring & Logging (Prometheus, Grafana, ELK)
+21. Service Mesh (Istio)
+22. GitOps (ArgoCD, Flux)
 
 **Thời gian:** 1-2 tháng
 
