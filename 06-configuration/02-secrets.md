@@ -1,42 +1,71 @@
-# 6.2. Secret - Quản Lý Sensitive Data
+# 6.2. Secrets - Sensitive Data Management
 
-> Secret for passwords, tokens, certificates
+> Manage passwords, tokens, và sensitive configuration
 
 ---
 
-## 🎯 Secret vs ConfigMap
+## 🎯 Mục Tiêu Học
+
+- ✅ Hiểu **Secrets là gì** và **khác ConfigMap**
+- ✅ Tạo và manage **Secrets securely**
+- ✅ Consume Secrets as **env vars, volumes**
+- ✅ **Security best practices**
+- ✅ **Encrypt Secrets** at rest
+
+---
+
+## 📦 Secret Là Gì?
+
+**Secret** = K8s object lưu sensitive data (passwords, tokens, keys) dạng base64-encoded.
+
+### Secret vs ConfigMap
 
 | Feature | ConfigMap | Secret |
 |---------|-----------|--------|
-| **Purpose** | Non-sensitive config | Passwords, tokens, keys |
-| **Encoding** | Plain text | Base64 encoded |
-| **Encryption** | No | Yes (if enabled in etcd) |
-| **Access control** | Standard RBAC | Stricter RBAC |
+| **Purpose** | Non-sensitive config | Sensitive data |
+| **Encoding** | Plain text | Base64-encoded |
+| **Example** | Database host, log level | Passwords, API tokens |
+| **At rest** | Plain text | Can be encrypted |
+| **Size limit** | 1MB | 1MB |
+
+**Rule:** Never put passwords/tokens trong ConfigMaps!
 
 ---
 
-## 📝 Create Secret
+## 📝 Create Secrets
 
-### 1. From Literal
+### From Literals
 
 ```bash
 kubectl create secret generic db-secret \
   --from-literal=username=admin \
-  --from-literal=password=secret123
+  --from-literal=password=P@ssw0rd
+
+kubectl get secret db-secret -o yaml
+# Data base64-encoded:
+# data:
+#   username: YWRtaW4=
+#   password: UEBzc3cwcmQ=
 ```
 
-### 2. From Files
+### From Files
 
 ```bash
+# Create files
 echo -n 'admin' > username.txt
-echo -n 'secret123' > password.txt
+echo -n 'P@ssw0rd' > password.txt
 
 kubectl create secret generic db-secret \
-  --from-file=username=username.txt \
-  --from-file=password=password.txt
+  --from-file=username.txt \
+  --from-file=password.txt
+
+# Or TLS secret
+kubectl create secret tls my-tls-secret \
+  --cert=cert.crt \
+  --key=cert.key
 ```
 
-### 3. From YAML
+### YAML Manifest
 
 ```yaml
 apiVersion: v1
@@ -45,172 +74,274 @@ metadata:
   name: db-secret
 type: Opaque
 data:
-  username: YWRtaW4=       # base64("admin")
-  password: c2VjcmV0MTIz   # base64("secret123")
+  # Base64-encoded values
+  username: YWRtaW4=  # admin
+  password: UEBzc3cwcmQ=  # P@ssw0rd
+
+# Or use stringData (auto-encodes)
+stringData:
+  username: admin
+  password: P@ssw0rd
 ```
 
-**Encode/Decode:**
+**Encode/decode base64:**
+
 ```bash
 # Encode
-echo -n 'admin' | base64
-# YWRtaW4=
+echo -n 'P@ssw0rd' | base64
+# Output: UEBzc3cwcmQ=
 
 # Decode
-echo 'YWRtaW4=' | base64 --decode
-# admin
+echo 'UEBzc3cwcmQ=' | base64 -d
+# Output: P@ssw0rd
 ```
 
 ---
 
-## 🔧 Use Secret
+## 🎮 Consume Secrets
 
-### 1. Environment Variables
+### As Environment Variables
 
 ```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: app
 spec:
   containers:
   - name: app
+    image: myapp:v1
     env:
-    - name: DB_USERNAME
-      valueFrom:
-        secretKeyRef:
-          name: db-secret
-          key: username
+    # Single secret value
     - name: DB_PASSWORD
       valueFrom:
         secretKeyRef:
           name: db-secret
           key: password
+    
+    # All keys as env vars
+    envFrom:
+    - secretRef:
+        name: db-secret
 ```
 
-### 2. Mount as Files
+### As Volume (Files)
 
 ```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: app
 spec:
   containers:
   - name: app
+    image: myapp:v1
     volumeMounts:
-    - name: secret
+    - name: secret-volume
       mountPath: /etc/secrets
-      readOnly: true
+      readOnly: true  # Important!
   volumes:
-  - name: secret
+  - name: secret-volume
     secret:
       secretName: db-secret
 
-# Result:
+# Creates files:
 # /etc/secrets/username
 # /etc/secrets/password
 ```
 
 ---
 
-## 🔒 Secret Types
+## 🔐 Secret Types
 
-### 1. Opaque (Default)
 ```yaml
+# 1. Opaque (generic)
 type: Opaque
-# Generic key-value secrets
-```
 
-### 2. Docker Registry
-```bash
-kubectl create secret docker-registry regcred \
-  --docker-server=docker.io \
-  --docker-username=myuser \
-  --docker-password=mypass \
-  --docker-email=my@email.com
-```
+# 2. TLS certificates
+type: kubernetes.io/tls
+data:
+  tls.crt: <base64-cert>
+  tls.key: <base64-key>
 
-### 3. TLS Certificate
-```bash
-kubectl create secret tls tls-secret \
-  --cert=path/to/cert.pem \
-  --key=path/to/key.pem
+# 3. Docker registry credentials
+type: kubernetes.io/dockerconfigjson
+data:
+  .dockerconfigjson: <base64-config>
+
+# 4. Basic auth
+type: kubernetes.io/basic-auth
+data:
+  username: <base64>
+  password: <base64>
+
+# 5. SSH auth
+type: kubernetes.io/ssh-auth
+data:
+  ssh-privatekey: <base64>
+
+# 6. Service account token
+type: kubernetes.io/service-account-token
 ```
 
 ---
 
 ## 🛡️ Security Best Practices
 
-### ✅ DO
+### 1. Enable Encryption at Rest
 
-1. **Enable encryption at rest** (etcd)
 ```yaml
-# kube-apiserver config
---encryption-provider-config=/etc/kubernetes/encryption-config.yaml
+# EncryptionConfiguration
+apiVersion: apiserver.config.k8s.io/v1
+kind: EncryptionConfiguration
+resources:
+  - resources:
+      - secrets
+    providers:
+      - aescbc:
+          keys:
+            - name: key1
+              secret: <32-byte-base64-key>
+      - identity: {}  # Fallback
 ```
 
-2. **Use external secret management**
-- HashiCorp Vault
-- AWS Secrets Manager
-- Azure Key Vault
-- Google Secret Manager
+### 2. RBAC: Limit Access
 
-3. **RBAC restrictions**
 ```yaml
-# Only specific ServiceAccount can read secrets
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: secret-reader
+rules:
+- apiGroups: [""]
+  resources: ["secrets"]
+  verbs: ["get", "list"]
+  # DO NOT allow "create", "update", "delete"
 ```
 
-4. **Don't commit Secrets to Git**
+### 3. Use External Secrets Management
+
+**Options:**
+- **HashiCorp Vault**: Enterprise secrets management
+- **AWS Secrets Manager**: AWS integration
+- **Azure Key Vault**: Azure integration
+- **Google Secret Manager**: GCP integration
+- **External Secrets Operator**: Sync external → K8s Secrets
+
+**Example: External Secrets Operator**
+
+```yaml
+apiVersion: external-secrets.io/v1beta1
+kind: ExternalSecret
+metadata:
+  name: db-secret
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: vault-backend
+    kind: SecretStore
+  target:
+    name: db-secret  # K8s Secret name
+  data:
+  - secretKey: password
+    remoteRef:
+      key: database/password
+```
+
+### 4. Avoid Hardcoding
+
+```yaml
+# ❌ Bad: Hardcoded in YAML
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-secret
+stringData:
+  password: "P@ssw0rd"  # Never commit to Git!
+
+# ✓ Good: Reference external secret
+# Use External Secrets Operator or Sealed Secrets
+```
+
+### 5. Use Sealed Secrets
+
 ```bash
-# .gitignore
-*.secret.yaml
-secrets/
+# Install Sealed Secrets controller
+kubectl apply -f https://github.com/bitnami-labs/sealed-secrets/releases/download/v0.18.0/controller.yaml
+
+# Encrypt Secret
+kubeseal --format yaml < secret.yaml > sealed-secret.yaml
+
+# Safe to commit sealed-secret.yaml to Git!
 ```
 
-5. **Rotate regularly**
+---
+
+## 🐛 Troubleshooting
+
+### Secret Not Found
+
 ```bash
-# Update secrets periodically
-kubectl create secret generic db-secret --from-literal=password=newpass123 --dry-run=client -o yaml | kubectl apply -f -
+# Check Secret exists
+kubectl get secret db-secret
+
+# Check namespace
+kubectl get secret db-secret -n <namespace>
+
+# Describe for details
+kubectl describe secret db-secret
 ```
 
-### ❌ DON'T
+### Wrong Encoding
 
-1. **Store in plain text files** in repo
-2. **Echo secrets in logs**
-3. **Give broad Secret access**
-4. **Use default ServiceAccount** for sensitive apps
-
----
-
-## ⚠️ Important Notes
-
-**Base64 ≠ Encryption!**
 ```bash
-# Anyone can decode
-echo 'c2VjcmV0MTIz' | base64 --decode
-# secret123
+# Verify base64 encoding
+kubectl get secret db-secret -o jsonpath='{.data.password}' | base64 -d
 
-# Base64 is encoding, NOT security
+# Should output correct password
 ```
 
-**Secrets visible to:**
-- Cluster admins
-- Anyone with RBAC access
-- Compromise of etcd = compromise of secrets
+### Permission Denied
 
-**Solution:** Use external secret managers (Vault, AWS Secrets Manager)
+```bash
+# Check RBAC permissions
+kubectl auth can-i get secrets
 
----
-
-## 🎓 Key Takeaways
-
-1. **Secret:** For sensitive data (passwords, tokens)
-2. **Base64 encoded:** Not encrypted by default!
-3. **Types:** Opaque, docker-registry, TLS
-4. **Use as:** Env vars or mounted files
-5. **Best practice:** External secret management
-6. **RBAC:** Restrict who can read Secrets
-7. **Never commit:** To version control
+# Check ServiceAccount permissions
+kubectl describe serviceaccount <sa-name>
+```
 
 ---
 
-**Chúc mừng!** Hoàn thành **Phần 6: Configuration** 🎉
+## 🎯 Key Takeaways
 
-👉 [**Phần 7: Storage**](../07-storage/README.md)
+1. **Secrets = Sensitive Data**
+   - Passwords, tokens, keys
+   - Base64-encoded
+   - Can be encrypted at rest
+
+2. **vs ConfigMap**
+   - Secrets: Sensitive
+   - ConfigMap: Non-sensitive
+   - Never put passwords in ConfigMaps!
+
+3. **Security**
+   - Enable encryption at rest
+   - RBAC: Limit access
+   - Use external secrets management (Vault)
+   - Never commit to Git
+
+4. **Consumption**
+   - Environment variables (simple)
+   - Volumes (files, more secure)
+   - Always readOnly for volumes
+
+5. **Best Practices**
+   - External Secrets Operator
+   - Sealed Secrets for GitOps
+   - Rotate regularly
+   - Audit access
 
 ---
 
-[⬅️ 6.1. ConfigMap](./01-configmap.md) | [⬆️ Phần 6](./README.md) | [🏠 Mục Lục](../README.md)
-
+[⬅️ 6.1. ConfigMaps](./01-configmaps.md) | [🏠 Mục Lục](../README.md) | [➡️ Phần 7: Storage](../07-storage/README.md)

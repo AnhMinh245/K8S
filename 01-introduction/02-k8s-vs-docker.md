@@ -1,506 +1,738 @@
 # 1.2. So Sánh Kubernetes vs Docker
 
-> Hiểu rõ sự khác biệt, biết khi nào dùng K8s, khi nào dùng Docker
+> Hiểu rõ sự khác biệt và khi nào nên dùng cái gì
 
 ---
 
-## 🎯 Mục Tiêu
+## 🎯 Mục Tiêu Học
 
-- Hiểu Docker giải quyết vấn đề gì
-- Phân biệt rõ K8s và Docker
-- Biết khi nào nên dùng cái gì
+Sau khi học xong phần này, bạn sẽ:
+- ✅ Phân biệt Docker và Kubernetes
+- ✅ Hiểu Docker làm gì, K8s làm gì
+- ✅ Biết khi nào dùng Docker, khi nào dùng K8s
+- ✅ Hiểu mối quan hệ Docker - Kubernetes
 
 ---
 
-## 🐳 Docker Giải Quyết Vấn Đề Gì?
+## 🤔 Câu Hỏi Thường Gặp
 
-### Vấn Đề: "Works on My Machine"
+**"Kubernetes thay thế Docker à?"**  
+→ **KHÔNG!** Docker và Kubernetes làm việc khác nhau.
 
-**Trước Docker:**
+**"Dùng Kubernetes thì không cần Docker?"**  
+→ **SAI!** Kubernetes dùng Docker (hoặc container runtime khác).
+
+**"Vậy khác nhau chỗ nào?"**  
+→ Đọc tiếp! 👇
+
+---
+
+## 📦 Docker Là Gì?
+
+### Định Nghĩa
+
+**Docker** là nền tảng để **đóng gói và chạy ứng dụng trong containers**.
+
+### Giải Thích Bằng Ví Dụ
+
+**Docker giống như một "thùng container vận chuyển":**
+
 ```
-Developer A (MacOS):
-  Python 3.8, MySQL 5.7, Redis 4.0
-  → Code chạy OK ✅
+🏭 Application = Hàng hóa
+📦 Docker Container = Thùng container
+🚢 Docker Engine = Cần cẩu (để chạy container)
 
-Developer B (Windows):
-  Python 3.9, MySQL 8.0, Redis 5.0
-  → Code báo lỗi ❌
-
-Production Server (Linux):
-  Python 3.7, MySQL 5.6, Redis 3.2
-  → Toàn bộ lỗi ❌❌❌
+Docker làm gì:
+✓ Đóng gói app + dependencies vào container
+✓ Chạy container trên máy tính
+✓ Đảm bảo app chạy giống nhau mọi nơi
 ```
 
-**Giải pháp Docker:**
+### Docker Giải Quyết Vấn Đề Gì?
+
+**Vấn đề: "It works on my machine!" (Trên máy tôi chạy được mà!)**
+
 ```
-Dockerfile định nghĩa môi trường:
-  - Python 3.8
-  - MySQL 5.7
-  - Redis 4.0
-  - Tất cả dependencies
+Developer: "App chạy ngon lành trên máy tôi!"
+   ↓
+Deploy lên server
+   ↓
+Server: "Lỗi! Thiếu dependencies!"
 
-→ Docker image chứa TOÀN BỘ môi trường
-→ Chạy giống hệt nhau trên MacOS, Windows, Linux ✅
+Nguyên nhân:
+❌ Python version khác nhau
+❌ OS khác nhau (Windows vs Linux)
+❌ Dependencies thiếu/khác version
+❌ Environment variables khác
 ```
 
-### Docker Là Gì?
+**Giải pháp: Docker Container**
 
-**Docker** là nền tảng để:
-1. **Package application** vào containers (đóng gói)
-2. **Run containers** trên một máy chủ (chạy)
-3. **Isolate** containers với nhau (cách ly)
+```
+Docker Container bao gồm:
+├── Application code
+├── Runtime (Node.js, Python, etc.)
+├── System libraries
+├── Dependencies
+└── Configuration
 
-**Ví dụ thực tế:**
+→ Chạy giống nhau ở EVERYWHERE!
+   ✓ Laptop developer
+   ✓ Testing server
+   ✓ Production server
+   ✓ Cloud (AWS, GCP, Azure)
+```
+
+---
+
+## ☸️ Kubernetes Là Gì?
+
+### Định Nghĩa
+
+**Kubernetes** là nền tảng để **quản lý và điều phối nhiều containers**.
+
+### Giải Thích Bằng Ví Dụ
+
+**Kubernetes giống như "công ty vận tải logistics":**
+
+```
+📦 Docker Container = Thùng container (1 cái)
+🏭 Kubernetes = Công ty logistics quản lý 1000 containers
+
+Kubernetes làm gì:
+✓ Quyết định container nào đi tàu nào (scheduling)
+✓ Theo dõi containers (monitoring)
+✓ Thay thế containers hỏng (self-healing)
+✓ Tăng/giảm containers theo nhu cầu (scaling)
+✓ Điều phối giữa nhiều servers (orchestration)
+```
+
+### Kubernetes Giải Quyết Vấn Đề Gì?
+
+**Vấn đề: Quản lý 100 containers thủ công = Địa ngục!**
+
+```
+Bạn có:
+├── 20 servers
+├── 100 containers
+└── Manual management
+
+Vấn đề:
+❌ Container 37 chết → không ai biết cho đến khi user complain
+❌ Server 5 chết → 10 containers biến mất
+❌ Traffic tăng → phải start containers thủ công
+❌ Deploy version mới → phải update từng container
+❌ Không biết container nào đang chạy ở đâu
+```
+
+**Giải pháp: Kubernetes tự động hóa tất cả!**
+
+---
+
+## 🔄 Mối Quan Hệ: Docker vs Kubernetes
+
+### Không Phải "Này hay Kia", Mà Là "Cùng Nhau"!
+
+```
+┌─────────────────────────────────────────┐
+│         KUBERNETES CLUSTER              │
+├─────────────────────────────────────────┤
+│                                         │
+│  Node 1:                                │
+│  ├─ Docker Engine                       │
+│  │  ├─ Container 1 (webapp)             │
+│  │  ├─ Container 2 (api)                │
+│  │  └─ Container 3 (worker)             │
+│                                         │
+│  Node 2:                                │
+│  ├─ Docker Engine                       │
+│  │  ├─ Container 4 (webapp)             │
+│  │  └─ Container 5 (api)                │
+│                                         │
+│  Node 3:                                │
+│  ├─ Docker Engine                       │
+│  │  └─ Container 6 (database)           │
+│                                         │
+└─────────────────────────────────────────┘
+
+Docker: Chạy containers
+Kubernetes: Quản lý containers trên nhiều servers
+```
+
+### Ví Dụ Thực Tế
+
+**Restaurant Analogy:**
+
+```
+DOCKER = Đầu bếp (Chef)
+├── Biết nấu món ăn
+├── Có công cụ nấu nướng
+└── Làm được 1 món tại 1 thời điểm
+
+KUBERNETES = Quản lý nhà hàng (Restaurant Manager)
+├── Quản lý nhiều đầu bếp
+├── Phân công việc cho đầu bếp
+├── Thuê thêm đầu bếp khi đông khách
+├── Thay đầu bếp bị ốm
+└── Đảm bảo nhà hàng hoạt động trơn tru
+
+→ Cần CẢ HAI để nhà hàng thành công!
+```
+
+---
+
+## 📊 So Sánh Chi Tiết
+
+### Docker vs Kubernetes
+
+| Đặc Điểm | Docker | Kubernetes |
+|----------|--------|------------|
+| **Mục đích** | Chạy containers | Quản lý containers |
+| **Scope** | 1 máy | Nhiều máy (cluster) |
+| **Commands** | `docker run`, `docker stop` | `kubectl create`, `kubectl scale` |
+| **Phù hợp** | Dev, testing, small apps | Production, large scale |
+| **Learning curve** | Dễ | Khó hơn |
+| **Setup** | Đơn giản | Phức tạp hơn |
+
+### Ví Dụ Commands
+
+**DOCKER (Chạy 1 container):**
 ```bash
-# Build image
-docker build -t my-app:1.0 .
+# Chạy webapp container
+docker run -d \
+  --name webapp \
+  -p 80:8080 \
+  --env DB_HOST=localhost \
+  myapp:v1
 
-# Run container
-docker run -p 8080:80 my-app:1.0
+# Chạy thêm 2 containers nữa (phải làm thủ công)
+docker run -d --name webapp2 -p 81:8080 myapp:v1
+docker run -d --name webapp3 -p 82:8080 myapp:v1
 
-# Stop container
-docker stop my-app
+# Container chết? Phải restart thủ công
+docker restart webapp
+```
+
+**KUBERNETES (Quản lý nhiều containers):**
+```bash
+# Chạy 3 containers (tự động!)
+kubectl create deployment webapp --image=myapp:v1 --replicas=3
+
+# Kubernetes tự động:
+# ✓ Chạy 3 containers
+# ✓ Phân phối lên 3 nodes
+# ✓ Load balance
+# ✓ Monitor health
+# ✓ Restart nếu chết
+
+# Scale lên 10 containers (1 command!)
+kubectl scale deployment webapp --replicas=10
+
+# Container chết? Kubernetes tự restart!
 ```
 
 ---
 
-## ⚖️ Kubernetes vs Docker: Khác Biệt Cơ Bản
+## 🎭 Kịch Bản Thực Tế
 
-### Nhầm Lẫn Phổ Biến
+### Scenario 1: Blog Cá Nhân (100 users/day)
 
-❌ **"Kubernetes vs Docker" không phải so sánh đúng!**
-
-✅ **Đúng ra:**
-- **Docker** = Container runtime + image format
-- **Kubernetes** = Container orchestration platform
-
-**Chúng bổ trợ cho nhau, không thay thế!**
-
+**YÊU CẦU:**
 ```
-┌─────────────────────────────────┐
-│        Kubernetes               │  ← Orchestration layer
-│  (Quản lý, deploy, scale...)    │
-└─────────────────────────────────┘
-            ↓ uses
-┌─────────────────────────────────┐
-│   Container Runtime             │  ← Container layer
-│   (Docker, containerd, CRI-O)   │
-└─────────────────────────────────┘
+├── 1 web server
+├── 1 database
+├── Ít traffic
+└── Budget thấp
 ```
 
-### So Sánh Chi Tiết
+**GIẢI PHÁP: Docker là đủ!**
+```bash
+# docker-compose.yml
+version: '3.8'
+services:
+  web:
+    image: myblog:latest
+    ports:
+      - "80:3000"
+  
+  db:
+    image: postgres:14
+    volumes:
+      - db-data:/var/lib/postgresql/data
 
-| Tiêu chí | Docker (Standalone) | Kubernetes |
-|----------|---------------------|------------|
-| **Mục đích chính** | Chạy containers trên 1 máy | Quản lý containers trên nhiều máy |
-| **Scope** | Single host | Multi-host cluster |
-| **Scaling** | Thủ công: `docker run` thêm container | Tự động: HPA scale theo CPU/memory |
-| **Load Balancing** | Cần tool bên ngoài (nginx, HAProxy) | Built-in Service |
-| **Self-Healing** | Không có (cần Docker Swarm hoặc script) | Tự động restart, replace containers |
-| **Service Discovery** | Thủ công config network | Tự động DNS, service discovery |
-| **Rolling Updates** | Thủ công: stop → start từng container | Tự động rolling updates |
-| **Configuration** | Env vars, volumes | ConfigMap, Secret |
-| **Storage** | Volumes (local hoặc plugins) | PersistentVolumes (nhiều loại storage) |
-| **Networking** | Bridge, host, overlay (đơn giản) | CNI plugins (phức tạp, mạnh mẽ) |
-| **Monitoring** | Cần tool bên ngoài | Metrics API, integration sẵn |
-| **Learning Curve** | Dễ học | Khó học hơn nhiều |
-| **Use Case** | Dev/Test, ứng dụng đơn giản | Production, multi-service, enterprise |
+# Chạy
+docker-compose up -d
+
+✓ Đơn giản
+✓ Dễ quản lý
+✓ Đủ cho nhu cầu
+```
+
+**TẠI SAO KHÔNG CẦN KUBERNETES:**
+- Chỉ 1 server
+- Traffic ít
+- Không cần scaling
+- Docker đủ đơn giản và rẻ
 
 ---
 
-## 🔄 Docker Swarm vs Kubernetes
+### Scenario 2: E-commerce (10,000 users, Black Friday)
 
-**Docker Swarm** = Orchestration tool của Docker (competitor của K8s)
+**YÊU CẦU:**
+```
+├── 20+ servers
+├── 100+ containers
+├── Traffic không đều (Black Friday spike)
+├── Zero downtime requirements
+├── Auto scaling
+└── High availability
+```
+
+**GIẢI PHÁP: CẦN Kubernetes!**
+```yaml
+# deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: webapp
+spec:
+  replicas: 10  # Bình thường
+  selector:
+    matchLabels:
+      app: webapp
+  template:
+    metadata:
+      labels:
+        app: webapp
+    spec:
+      containers:
+      - name: webapp
+        image: ecommerce:v2
+        resources:
+          requests:
+            cpu: 500m
+            memory: 512Mi
+          limits:
+            cpu: 1000m
+            memory: 1Gi
+
+---
+# hpa.yaml (Auto-scaling)
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: webapp-hpa
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: webapp
+  minReplicas: 10
+  maxReplicas: 100  # Black Friday scale up!
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+```
+
+**KẾT QUẢ:**
+```
+Ngày thường:
+├── 10 containers
+├── Cost: $500/tháng
+└── Performance tốt
+
+Black Friday:
+├── Tự động scale lên 100 containers
+├── Cost: $500 + $200 (cho 1 ngày)
+├── Zero downtime
+├── Users happy
+└── Sau Black Friday: Tự động scale xuống 10
+```
+
+**TẠI SAO CẦN KUBERNETES:**
+- Nhiều servers
+- Cần auto-scaling
+- High availability
+- Complex deployment requirements
+- Docker + manual management không đủ
+
+---
+
+## 🔀 Docker Swarm vs Kubernetes
+
+### Docker Swarm Là Gì?
+
+**Docker Swarm** = Docker's orchestration tool (như Kubernetes)
+
+```
+Docker Swarm:
+├── Do Docker phát triển
+├── Tích hợp native với Docker
+├── Đơn giản hơn Kubernetes
+└── Ít features hơn Kubernetes
+```
 
 ### So Sánh
 
 | Feature | Docker Swarm | Kubernetes |
 |---------|--------------|------------|
-| **Setup** | Rất đơn giản | Phức tạp |
-| **Learning Curve** | Dễ (nếu đã biết Docker) | Khó |
-| **Features** | Cơ bản, đủ dùng | Đầy đủ, mạnh mẽ |
-| **Community** | Nhỏ | Rất lớn |
-| **Ecosystem** | Hạn chế | Phong phú (Helm, Operators...) |
-| **Production Usage** | Ít công ty dùng | Industry standard |
-| **Auto-scaling** | Cơ bản | Mạnh mẽ (HPA, VPA, Cluster Autoscaler) |
-| **Cloud Support** | Hạn chế | Hỗ trợ mọi cloud provider |
+| **Độ phức tạp** | Đơn giản | Phức tạp hơn |
+| **Learning curve** | Dễ | Khó |
+| **Features** | Cơ bản | Đầy đủ, mạnh mẽ |
+| **Community** | Nhỏ hơn | Rất lớn |
+| **Ecosystem** | Hạn chế | Phong phú |
+| **Production use** | Ít | Rất phổ biến |
+| **Cloud support** | Limited | Excellent (GKE, EKS, AKS) |
 
-### Ví Dụ So Sánh Config
+### Khi Nào Dùng Docker Swarm?
 
-**Docker Swarm:**
-```yaml
-version: '3'
-services:
-  web:
-    image: nginx:1.20
-    replicas: 3
-    ports:
-      - "80:80"
+```
+✓ Team nhỏ, quen Docker
+✓ Cần orchestration đơn giản
+✓ Không cần features phức tạp
+✓ Muốn setup nhanh
 ```
 
-**Kubernetes:**
+### Khi Nào Dùng Kubernetes?
+
+```
+✓ Production serious workloads
+✓ Cần auto-scaling phức tạp
+✓ Multi-cloud deployment
+✓ Large team/organization
+✓ Cần ecosystem phong phú
+✓ Industry standard
+```
+
+---
+
+## 💡 Quyết Định: Dùng Gì?
+
+### Decision Tree
+
+```
+Bắt đầu Project
+    ↓
+    ├─→ Development/Testing?
+    │   → Docker là đủ!
+    │
+    ├─→ Small app (< 5 containers)?
+    │   → Docker Compose là đủ!
+    │
+    ├─→ Medium app, 1 server?
+    │   → Docker + Docker Compose
+    │
+    ├─→ Multiple servers?
+    │   ↓
+    │   ├─→ Simple orchestration?
+    │   │   → Docker Swarm
+    │   │
+    │   └─→ Production, need scaling?
+    │       → Kubernetes ✓
+    │
+    └─→ Enterprise, serious production?
+        → Kubernetes ✓ ✓ ✓
+```
+
+### Roadmap Học Tập
+
+```
+1. Học Docker trước (2-3 tuần)
+   ├── Hiểu containers
+   ├── Dockerfile
+   ├── Docker Compose
+   └── Networking basics
+
+2. Sau đó học Kubernetes (1-2 tháng)
+   ├── Có nền tảng Docker rồi
+   ├── Hiểu why cần orchestration
+   └── Apply kiến thức Docker vào K8s
+```
+
+---
+
+## 🎓 Kiểm Tra Hiểu Biết
+
+### Câu Hỏi Tự Kiểm Tra
+
+**1. Docker và Kubernetes khác nhau như thế nào?**
+<details>
+<summary>Xem đáp án</summary>
+
+- **Docker:** Chạy containers trên 1 máy
+- **Kubernetes:** Quản lý containers trên nhiều máy
+- **Mối quan hệ:** K8s dùng Docker (hoặc container runtime khác) để chạy containers
+- **Analogy:** Docker = đầu bếp, Kubernetes = quản lý nhà hàng
+</details>
+
+**2. Khi nào Docker là đủ?**
+<details>
+<summary>Xem đáp án</summary>
+
+- Development/testing
+- Small applications
+- 1 server
+- Ít containers (< 10)
+- Không cần auto-scaling
+- Blog cá nhân, side projects
+</details>
+
+**3. Khi nào cần Kubernetes?**
+<details>
+<summary>Xem đáp án</summary>
+
+- Production workloads
+- Multiple servers
+- Nhiều containers (50+)
+- Cần auto-scaling
+- High availability requirements
+- E-commerce, SaaS platforms
+</details>
+
+**4. Có thể dùng Kubernetes mà không dùng Docker không?**
+<details>
+<summary>Xem đáp án</summary>
+
+**Có!** Kubernetes hỗ trợ nhiều container runtimes:
+- Docker (phổ biến nhất)
+- containerd
+- CRI-O
+
+Nhưng vẫn cần hiểu Docker concepts!
+</details>
+
+---
+
+## 💪 Bài Tập Thực Hành
+
+### Bài 1: Chọn công cụ phù hợp
+
+**Cho các scenarios sau, chọn Docker hoặc Kubernetes:**
+
+**a) Personal blog, 50 users/day, 1 server**
+<details>
+<summary>Xem đáp án</summary>
+
+**Docker Compose** là đủ!
+
+```yaml
+version: '3.8'
+services:
+  blog:
+    image: myblog:latest
+    ports:
+      - "80:3000"
+  db:
+    image: postgres:14
+```
+
+Lý do: Đơn giản, ít traffic, 1 server.
+</details>
+
+**b) SaaS platform, 10,000 users, need 99.9% uptime**
+<details>
+<summary>Xem đáp án</summary>
+
+**Kubernetes!**
+
 ```yaml
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: web
+  name: saas-app
+spec:
+  replicas: 10
+  strategy:
+    type: RollingUpdate
+  template:
+    spec:
+      containers:
+      - name: app
+        image: saas:v1
+        resources:
+          limits:
+            cpu: 1000m
+            memory: 1Gi
+```
+
+Lý do: High availability, scaling, multiple servers needed.
+</details>
+
+**c) Microservices với 20 services, 5 servers**
+<details>
+<summary>Xem đáp án</summary>
+
+**Kubernetes!**
+
+20 services, 5 servers = Cần orchestration:
+- Service discovery
+- Load balancing
+- Health checks
+- Auto-scaling
+- Rolling updates
+
+Docker manual management sẽ là nightmare!
+</details>
+
+---
+
+### Bài 2: Migrate từ Docker sang Kubernetes
+
+**Bạn có Docker Compose:**
+```yaml
+version: '3.8'
+services:
+  web:
+    image: webapp:v1
+    ports:
+      - "80:8080"
+    environment:
+      - DB_HOST=db
+      - DB_PORT=5432
+  
+  db:
+    image: postgres:14
+    environment:
+      - POSTGRES_PASSWORD=secret123
+```
+
+**Convert sang Kubernetes (simplified):**
+<details>
+<summary>Xem đáp án</summary>
+
+```yaml
+# web-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: webapp
 spec:
   replicas: 3
   selector:
     matchLabels:
-      app: web
+      app: webapp
   template:
     metadata:
       labels:
-        app: web
+        app: webapp
     spec:
       containers:
-      - name: nginx
-        image: nginx:1.20
+      - name: webapp
+        image: webapp:v1
+        ports:
+        - containerPort: 8080
+        env:
+        - name: DB_HOST
+          value: postgres-service
+        - name: DB_PORT
+          value: "5432"
+
 ---
+# web-service.yaml
 apiVersion: v1
 kind: Service
 metadata:
-  name: web
+  name: webapp-service
 spec:
   selector:
-    app: web
+    app: webapp
   ports:
   - port: 80
-```
+    targetPort: 8080
+  type: LoadBalancer
 
-**Nhận xét:**
-- Swarm đơn giản hơn nhiều
-- K8s verbose hơn nhưng mạnh mẽ và linh hoạt hơn
+---
+# db-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:14
+        env:
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: db-secret
+              key: password
+
+---
+# db-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-service
+spec:
+  selector:
+    app: postgres
+  ports:
+  - port: 5432
+```
+</details>
 
 ---
 
-## 📊 Khi Nào Dùng Cái Gì?
+## 🎯 Key Takeaways
 
-### ✅ Dùng Docker Standalone
+### Ghi Nhớ 5 Điều Quan Trọng
 
-**Phù hợp khi:**
-1. **Development environment**
-   - Dev trên laptop cá nhân
-   - Test local trước khi deploy
-
-2. **Single server application**
-   - Blog cá nhân
-   - Website nhỏ
-   - Internal tools
-
-3. **Learning/Prototyping**
-   - Học containers
-   - Proof of concept
-
-4. **Simple workloads**
-   - Chạy vài container
-   - Không cần HA
-   - Traffic ổn định
-
-**Ví dụ thực tế:**
-```bash
-# Blog WordPress đơn giản
-docker-compose up
-  - WordPress container
-  - MySQL container
-  
-→ Đủ cho blog cá nhân 1000 visits/day
-```
-
-### ✅ Dùng Docker Swarm
-
-**Phù hợp khi:**
-1. **Cần orchestration đơn giản**
-   - Vài services
-   - Scaling cơ bản
+1. **Docker ≠ Kubernetes**
+   - Docker: Chạy containers
+   - Kubernetes: Quản lý containers
    
-2. **Team nhỏ, chưa có DevOps**
-   - Không đủ resource học K8s
-   - Cần solution nhanh
-
-3. **Legacy Docker users**
-   - Đã quen Docker
-   - Muốn migrate dễ dàng
-
-**Ví dụ:** Startup với 3-5 microservices, 5-10 servers
-
-### ✅ Dùng Kubernetes
-
-**Phù hợp khi:**
-1. **Production workloads lớn**
-   - Nhiều microservices (10+)
-   - High traffic
-   - Cần 99.9%+ uptime
-
-2. **Multi-environment**
-   - Dev, Staging, Production
-   - Multiple teams
-
-3. **Dynamic scaling**
-   - Traffic không đều
-   - Cần auto-scale
-   - Cost optimization
-
-4. **Cloud-native applications**
-   - Microservices architecture
-   - CI/CD pipeline
-   - Modern development practices
-
-5. **Enterprise requirements**
-   - Multi-tenancy
-   - RBAC, security policies
-   - Compliance
-
-**Ví dụ thực tế:**
-- E-commerce platform: 50 microservices, 1M requests/day
-- SaaS application: Multi-tenant, auto-scaling
-- Fintech: High security, compliance, audit logs
-
----
-
-## 🏢 Case Studies Thực Tế
-
-### Case 1: Startup Giai Đoạn Đầu
-
-**Tình huống:**
-- Team: 3 developers
-- MVP: Monolith app + database
-- Traffic: 100-500 users/day
-- Budget: Hạn chế
-
-**Giải pháp:**
-```
-✅ Docker Compose
-  - docker-compose.yml
-  - 1 VPS $20/month
-  - Deploy = git pull + docker-compose up
-  
-❌ Không cần K8s (overkill)
-```
-
-### Case 2: Startup Scale-Up
-
-**Tình huống:**
-- Team: 10 developers
-- Architecture: 5 microservices
-- Traffic: 10,000 users/day, tăng nhanh
-- Cần: Auto-scaling, zero downtime
-
-**Giải pháp:**
-```
-✅ Kubernetes (managed: EKS, GKE, AKS)
-  - Auto-scaling
-  - Rolling updates
-  - Multi-environment
-  
-hoặc
-
-✅ Docker Swarm (nếu team chưa sẵn sàng K8s)
-  - Đơn giản hơn
-  - Đủ dùng cho giai đoạn này
-```
-
-### Case 3: Enterprise
-
-**Tình huống:**
-- Team: 50+ developers
-- Architecture: 30+ microservices
-- Traffic: Millions requests/day
-- Requirements: HA, security, compliance
-
-**Giải pháp:**
-```
-✅ Kubernetes (bắt buộc)
-  - Multi-cluster setup
-  - Service mesh (Istio)
-  - GitOps (ArgoCD)
-  - Monitoring stack (Prometheus, Grafana)
-  
-❌ Docker Swarm không đủ mạnh
-```
-
-### Case 4: Personal Project
-
-**Tình huống:**
-- Side project
-- 1 developer
-- Low traffic
-- Learning purpose
-
-**Giải pháp:**
-```
-✅ Docker Compose cho production
-  - Đơn giản
-  - Đủ dùng
-  
-✅ Minikube/Kind cho học K8s
-  - Practice K8s concepts
-  - Không deploy production trên Minikube
-```
-
----
-
-## 🔄 Migration Path: Docker → Kubernetes
-
-### Lộ Trình Chuyển Đổi
-
-**Phase 1: Docker Compose (Hiện tại)**
-```
-docker-compose.yml
-  - web service
-  - api service
-  - database
-```
-
-**Phase 2: Prepare for K8s**
-```
-1. Tách database ra ngoài (managed DB)
-2. Externalize configuration (env vars)
-3. Health checks
-4. Logging tập trung
-5. Stateless applications
-```
-
-**Phase 3: Kubernetes (Tương lai)**
-```
-1. Convert docker-compose → K8s manifests
-   Tool: Kompose (tự động convert)
+2. **Không phải "này hay kia"**
+   - Kubernetes DÙNG Docker
+   - Cần cả hai!
    
-2. Deploy lên K8s cluster
-   - Deployment cho mỗi service
-   - Service cho networking
-   - ConfigMap cho config
+3. **Start với Docker**
+   - Học Docker trước
+   - Sau đó học Kubernetes
    
-3. Incrementally add K8s features
-   - Auto-scaling
-   - Ingress
-   - Monitoring
-```
-
-### Tools Hỗ Trợ Migration
-
-**1. Kompose**
-```bash
-# Convert docker-compose.yml → K8s YAML
-kompose convert -f docker-compose.yml
-
-# Output:
-# - deployment.yaml
-# - service.yaml
-# - pvc.yaml
-```
-
-**2. Helm Charts**
-Tìm Helm chart có sẵn cho ứng dụng phổ biến:
-```bash
-# Thay vì tự config WordPress
-helm install wordpress bitnami/wordpress
-```
+4. **Choose based on needs**
+   - Small app → Docker
+   - Production, scaling → Kubernetes
+   
+5. **Kubernetes is the future**
+   - Industry standard
+   - Nhưng phải hiểu Docker trước!
 
 ---
 
-## 💡 Decision Tree: Chọn Công Cụ Nào?
+## 📚 Thuật Ngữ Cần Nhớ
 
-```
-Bắt đầu:
-│
-├─ Bạn đang học containers?
-│  └─ YES → Docker (standalone)
-│  └─ NO  → Tiếp tục
-│
-├─ Production application?
-│  └─ NO  → Docker Compose
-│  └─ YES → Tiếp tục
-│
-├─ Chỉ 1 server?
-│  └─ YES → Docker Compose hoặc Swarm
-│  └─ NO  → Tiếp tục
-│
-├─ < 5 microservices?
-│  └─ YES → Docker Swarm (hoặc K8s nếu team có kinh nghiệm)
-│  └─ NO  → Tiếp tục
-│
-├─ Enterprise, nhiều teams?
-│  └─ YES → Kubernetes
-│  
-├─ Cần auto-scaling mạnh mẽ?
-│  └─ YES → Kubernetes
-│
-├─ Multi-cloud hoặc hybrid cloud?
-│  └─ YES → Kubernetes
-│
-└─ Default cho production hiện đại
-   → Kubernetes
-```
-
----
-
-## 📈 Xu Hướng Hiện Nay
-
-### Industry Trends
-
-1. **K8s = Standard**
-   - Đa số công ty lớn đã chuyển sang K8s
-   - Job postings yêu cầu K8s experience
-   
-2. **Docker vẫn quan trọng**
-   - Container format standard
-   - K8s vẫn chạy Docker images
-   
-3. **Docker Swarm declining**
-   - Docker Inc. focus vào Docker Desktop
-   - Community chuyển sang K8s
-   
-4. **Managed Kubernetes phổ biến**
-   - AWS EKS, GCP GKE, Azure AKS
-   - Giảm complexity của K8s
-
-### Cloud Provider Support
-
-| Provider | Docker Support | K8s Support |
-|----------|----------------|-------------|
-| AWS | ECS (proprietary) | EKS (managed K8s) ⭐ |
-| Google Cloud | Cloud Run | GKE (managed K8s) ⭐⭐ |
-| Azure | Container Instances | AKS (managed K8s) ⭐ |
-| DigitalOcean | Droplets | DOKS (managed K8s) |
-
-**Nhận xét:** Mọi cloud provider đều invest mạnh vào K8s
-
----
-
-## 🎓 Key Takeaways
-
-1. **Docker ≠ K8s:** Docker là container runtime, K8s là orchestration
-2. **Bổ trợ nhau:** K8s dùng Docker (hoặc containerd) để chạy containers
-3. **Docker Compose:** Tốt cho dev, small apps
-4. **Docker Swarm:** Đơn giản nhưng ít features
-5. **Kubernetes:** Phức tạp nhưng mạnh mẽ, industry standard
-6. **Choose based on needs:** Không phải lúc nào cũng cần K8s
-7. **Learning path:** Docker → Docker Compose → Kubernetes
-
----
-
-## ❓ Câu Hỏi Tự Kiểm Tra
-
-1. Docker và Kubernetes có thay thế nhau không?
-2. Khi nào nên dùng Docker Compose thay vì Kubernetes?
-3. So sánh Docker Swarm và Kubernetes?
-4. "Works on my machine" là vấn đề gì và Docker giải quyết thế nào?
-5. Managed Kubernetes (EKS, GKE) khác gì với self-hosted K8s?
+| Thuật Ngữ | Tiếng Việt | Ý Nghĩa |
+|-----------|------------|---------|
+| **Container Runtime** | Container Runtime | Phần mềm chạy containers (Docker, containerd) |
+| **Orchestration** | Điều phối | Quản lý nhiều containers tự động |
+| **Docker Compose** | Docker Compose | Tool để chạy multi-container apps |
+| **Docker Swarm** | Docker Swarm | Orchestration tool của Docker |
+| **Cluster** | Cluster | Nhóm servers chạy Kubernetes |
 
 ---
 
 ## 🚀 Tiếp Theo
 
-Bạn đã hiểu sự khác biệt giữa Docker và Kubernetes.
+Bạn đã phân biệt được Docker và Kubernetes!
 
-👉 Tiếp theo: [1.3. Khi Nào Nên Dùng Kubernetes](./03-when-to-use-k8s.md)
+**Next:** [1.3. Khi Nào Nên Dùng Kubernetes →](./03-when-to-use-k8s.md)
 
-Chúng ta sẽ đi sâu vào các use cases cụ thể và decision framework.
+Ở phần tiếp theo, chúng ta sẽ tìm hiểu chi tiết khi nào NÊN và khi nào KHÔNG NÊN dùng Kubernetes.
 
 ---
 
-[⬅️ 1.1. Kubernetes Là Gì?](./01-what-is-kubernetes.md) | [⬆️ Về Phần 1: Introduction](./README.md) | [🏠 Mục Lục Chính](../README.md)
-
-
+[⬅️ 1.1. Kubernetes Là Gì](./01-what-is-kubernetes.md) | [🏠 Mục Lục Chính](../README.md) | [📂 Phần 1: Introduction](./README.md) | [➡️ 1.3. Khi Nào Dùng K8s](./03-when-to-use-k8s.md)

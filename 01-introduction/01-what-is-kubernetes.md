@@ -1,381 +1,664 @@
 # 1.1. Kubernetes Là Gì?
 
-> Hiểu bản chất của Kubernetes và vấn đề nó giải quyết
+> Hiểu Kubernetes từ vấn đề thực tế nó giải quyết
 
 ---
 
-## 🎯 Mục Tiêu
+## 🎯 Mục Tiêu Học
 
-- Hiểu Kubernetes là gì bằng ví dụ thực tế
-- Nắm được các vấn đề K8s giải quyết
-- Biết các tính năng cốt lõi của K8s
-
----
-
-## 📖 Định Nghĩa Đơn Giản
-
-**Kubernetes (K8s)** là một **hệ thống orchestration** (điều phối) cho container, giúp bạn:
-- Tự động deploy, scale và quản lý container
-- Chạy trên nhiều máy chủ (cluster)
-- Đảm bảo ứng dụng luôn sẵn sàng (high availability)
-
-**Orchestration** nghĩa là gì? → Tự động hóa việc quản lý vòng đời của containers.
+Sau khi học xong phần này, bạn sẽ:
+- ✅ Hiểu **TẠI SAO** cần Kubernetes
+- ✅ Biết Kubernetes **GIẢI QUYẾT VẤN ĐỀ GÌ**
+- ✅ Nắm được các tính năng cốt lõi
+- ✅ So sánh với cách deploy truyền thống
 
 ---
 
-## 🏢 Vấn Đề Thực Tế
+## 🏢 Vấn Đề Trong Thực Tế
 
-### Câu Chuyện 1: Cửa Hàng Coffee
+### Câu Chuyện: Startup Phát Triển Nhanh
 
-Tưởng tượng bạn mở một chuỗi cửa hàng coffee:
+**Giai đoạn 1: Khởi đầu (10 users)**
+```
+Bạn có 1 web app đơn giản:
+├── Frontend (React)
+├── Backend (Node.js)
+└── Database (PostgreSQL)
 
-#### 🕐 Giai đoạn 1: Cửa hàng nhỏ (1 địa điểm)
-- **Nhân viên:** 2 người
-- **Quản lý:** Bạn tự quản lý trực tiếp
-- **Vấn đề:** Nhân viên ốm? Bạn tự thay thế
-- **Tương đương:** Chạy Docker trên 1 máy chủ
+Deploy: Chạy trên 1 server (VPS)
+Cost: $20/tháng
+Problem: Không có!
+```
 
-✅ **Dễ quản lý, không cần hệ thống phức tạp**
+**Giai đoạn 2: Tăng trưởng (1,000 users)**
+```
+Server quá tải!
+├── CPU: 90%
+├── Memory: 85%
+├── Response time: 5 giây
+└── Đêm nào cũng bị crash
 
-#### 🏬 Giai đoạn 2: Chuỗi lớn (100 cửa hàng)
-- **Nhân viên:** 500 người
-- **Phân bố:** 100 địa điểm khác nhau
-- **Thách thức:**
-  - Làm sao biết cửa hàng nào cần thêm nhân viên?
-  - Nhân viên ốm ở chi nhánh A → Ai điều thêm người?
-  - Giờ cao điểm ở chi nhánh B → Cần thêm người nhanh!
-  - Update quy trình mới → 100 cửa hàng phải cập nhật đồng bộ
-  - Làm sao đảm bảo mọi nơi đều hoạt động 24/7?
+Solution: Thêm server!
+```
 
-❌ **Quản lý thủ công = Không khả thi!**
+**Giai đoạn 3: Scale lên (10,000 users)**
+```
+Bạn mua thêm 5 servers:
+├── Server 1: Frontend
+├── Server 2: Backend  
+├── Server 3: Backend (replica)
+├── Server 4: Database
+└── Server 5: Redis cache
 
-✅ **Cần hệ thống tự động quản lý** → Đây chính là vai trò của Kubernetes!
+Problems bắt đầu xuất hiện:
+❌ Server 2 chết → 50% requests fail
+❌ Deploy code mới → phải SSH vào từng server
+❌ Traffic spike → không đủ server
+❌ 3AM server chết → phải thức dậy restart
+❌ Scaling thủ công quá chậm
+❌ Monitoring từng server riêng → mệt mỏi
+```
+
+**Giai đoạn 4: Hỗn loạn (100,000 users)**
+```
+20 servers, 50 containers:
+❌ Deploy mất 2 giờ
+❌ Không biết container nào chạy ở đâu
+❌ 1 server chết → ảnh hưởng nhiều services
+❌ Không biết server nào đang overload
+❌ Rollback code → phải làm thủ công
+❌ Team mất ngủ mỗi đêm
+```
+
+### Vấn Đề Cốt Lõi
+
+Khi hệ thống lớn lên, bạn cần:
+
+1. **Tự động hóa** thay vì thủ công
+2. **Self-healing** khi có lỗi xảy ra
+3. **Scaling** tự động theo traffic
+4. **Deploy** nhanh và an toàn
+5. **Monitoring** tập trung
+6. **Resource management** hiệu quả
+
+→ **ĐÂY LÀ LÚC CẦN KUBERNETES!**
 
 ---
 
-### Câu Chuyện 2: Ứng Dụng Web Thực Tế
+## 🚀 Kubernetes Là Gì?
 
-Bạn có một ứng dụng e-commerce chạy trên container:
+### Định Nghĩa
 
-#### 📊 Các vấn đề gặp phải:
+**Kubernetes (K8s)** là một nền tảng mã nguồn mở để **tự động hóa việc triển khai, mở rộng và quản lý các ứng dụng container**.
 
-**1. Scaling (Mở rộng)**
-```
-Thứ 2 - 3h sáng:     100 users online   → Cần 2 containers
-Thứ 6 - 12h trưa:    10,000 users       → Cần 20 containers
-Black Friday:        100,000 users      → Cần 200 containers?
-```
-❓ **Làm sao tự động tăng/giảm số container?**
+### Giải Thích Bằng Ví Dụ Thực Tế
 
-**2. High Availability (Sẵn sàng cao)**
-```
-Container 1: Running
-Container 2: CRASHED ❌
-Container 3: Running
-```
-❓ **Ai phát hiện Container 2 chết và tự động restart?**
+**Kubernetes giống như một "người quản lý thông minh" cho data center của bạn:**
 
-**3. Load Balancing (Cân bằng tải)**
 ```
-Request 1 → Container nào?
-Request 2 → Container nào?
-Request 3 → Container nào?
-```
-❓ **Làm sao phân phối request đều giữa các container?**
+🏭 Data Center = Nhà máy sản xuất
+📦 Container = Công nhân
+🎯 Kubernetes = Giám đốc điều hành
 
-**4. Service Discovery (Tìm kiếm dịch vụ)**
-```
-Frontend container cần gọi Backend container
-Backend IP: 172.17.0.5
-
-Nhưng Backend restart → IP mới: 172.17.0.12
-```
-❓ **Frontend làm sao biết IP mới của Backend?**
-
-**5. Rolling Updates (Cập nhật không downtime)**
-```
-Hiện tại: Version 1.0 (5 containers)
-Muốn deploy: Version 1.1
-
-Nếu stop hết 5 containers cũ → Start 5 containers mới
-→ Downtime 2-3 phút ❌
-```
-❓ **Làm sao update mà không bị gián đoạn service?**
-
-**6. Multi-server Management (Quản lý nhiều server)**
-```
-Server 1: 8 GB RAM, 4 CPU cores
-Server 2: 16 GB RAM, 8 CPU cores
-Server 3: 32 GB RAM, 16 CPU cores
-```
-❓ **Container nên chạy trên server nào? Ai quyết định?**
-
-**7. Configuration Management**
-```
-Dev environment:   DB = dev-db.internal
-Staging:           DB = staging-db.internal
-Production:        DB = prod-db.internal
-```
-❓ **Làm sao quản lý config khác nhau cho mỗi môi trường?**
-
----
-
-## ✅ Kubernetes Giải Quyết Như Thế Nào?
-
-### 1. **Auto-Scaling (Tự động mở rộng)**
-```
-Bạn: "Tôi muốn CPU < 70%, tự động scale từ 2-20 containers"
-K8s: "OK! Tôi sẽ giám sát và tự động tăng/giảm"
-
-Khi CPU = 85% → K8s tự động tạo thêm container
-Khi CPU = 30% → K8s tự động xóa bớt container
-```
-
-### 2. **Self-Healing (Tự phục hồi)**
-```
-Container crashed ❌
-→ K8s phát hiện sau 5 giây
-→ K8s tự động restart container mới
-→ Service tiếp tục hoạt động ✅
-
-Toàn bộ server chết ❌
-→ K8s di chuyển tất cả containers sang server khác
-→ Không cần can thiệp thủ công ✅
-```
-
-### 3. **Load Balancing (Tự động cân bằng tải)**
-```
-5 Backend containers đang chạy
-→ K8s tự động phân phối request đều
-→ Built-in load balancer, không cần nginx/HAProxy
-```
-
-### 4. **Service Discovery (Tự động tìm dịch vụ)**
-```
-Backend container có IP thay đổi
-→ Frontend không cần biết IP cụ thể
-→ Gọi "backend-service" → K8s tự động route
-```
-
-### 5. **Rolling Updates & Rollback**
-```
-Deploy Version 1.1:
-  K8s: Tạo 1 container v1.1
-       Chờ container ready
-       Xóa 1 container v1.0
-       Lặp lại cho đến khi hết
-  
-  → Zero downtime ✅
-
-Nếu Version 1.1 có bug:
-  kubectl rollback
-  → K8s tự động quay về v1.0 trong vài giây
-```
-
-### 6. **Intelligent Scheduling (Lập lịch thông minh)**
-```
-Container X cần 2GB RAM
-→ K8s scan tất cả servers
-→ Tìm server có đủ 2GB RAM trống
-→ Tự động đặt container lên server đó
-→ Cân bằng workload giữa các servers
-```
-
-### 7. **Configuration & Secret Management**
-```
-K8s quản lý:
-- ConfigMap: Database URLs, settings, feature flags
-- Secret: Passwords, API keys, certificates
-
-Môi trường khác nhau? Chỉ cần thay ConfigMap
-→ Không cần rebuild Docker image
+Kubernetes làm gì:
+✓ Phân công việc cho workers (scheduling)
+✓ Đảm bảo đủ workers đang làm việc (replication)
+✓ Thay thế worker bị ốm (self-healing)
+✓ Tăng/giảm workers theo khối lượng công việc (scaling)
+✓ Phân phối công việc đều (load balancing)
+✓ Cập nhật quy trình không gián đoạn (rolling updates)
 ```
 
 ---
 
-## 🔧 Tính Năng Cốt Lõi Của Kubernetes
+## 💡 Kubernetes Giải Quyết Như Thế Nào?
 
-### 1. **Container Orchestration**
-Quản lý vòng đời của containers: start, stop, restart, migrate
+### Trước Kubernetes vs Với Kubernetes
 
-### 2. **Declarative Configuration**
-```yaml
-Bạn khai báo "Desired State" (trạng thái mong muốn):
-  "Tôi muốn 3 replicas của container web"
-
-K8s đảm bảo "Current State" = "Desired State":
-  - Nếu có 2 containers → Tạo thêm 1
-  - Nếu có 4 containers → Xóa 1
-  - Liên tục giám sát và điều chỉnh
-```
-
-### 3. **Self-Healing**
-Tự động phát hiện và sửa lỗi:
-- Container crash → Restart
-- Node down → Migrate containers
-- Health check fail → Replace container
-
-### 4. **Horizontal Scaling**
-Tăng/giảm số lượng containers dễ dàng:
+**TRƯỚC (Manual):**
 ```bash
-# Scale manual
-kubectl scale deployment web --replicas=10
+# Deploy code mới (phải làm trên 20 servers!)
+ssh server1 "docker pull myapp:v2 && docker restart myapp"
+ssh server2 "docker pull myapp:v2 && docker restart myapp"
+ssh server3 "docker pull myapp:v2 && docker restart myapp"
+# ... 17 lần nữa 😫
 
-# Auto-scale
-HorizontalPodAutoscaler: Min=2, Max=50, CPU=70%
+# Server chết lúc 3 AM
+→ Điện thoại reo
+→ Thức dậy
+→ SSH vào
+→ Restart thủ công
+→ Mất ngủ
 ```
 
-### 5. **Service Discovery & Load Balancing**
-- DNS tự động cho mọi service
-- Load balancing built-in
-- IP ổn định cho services
+**VỚI KUBERNETES:**
+```bash
+# Deploy code mới (1 command duy nhất!)
+kubectl set image deployment/myapp myapp=myapp:v2
 
-### 6. **Storage Orchestration**
-- Tự động mount storage (local, cloud, network storage)
-- Quản lý persistent data
-- Volume lifecycle management
+# Server/Container chết
+→ Kubernetes tự động phát hiện
+→ Tự động start container mới
+→ Bạn ngủ ngon 😴
+```
 
-### 7. **Automated Rollouts & Rollbacks**
-- Update ứng dụng không downtime
-- Rollback nhanh khi có vấn đề
-- Update strategies: Rolling, Blue-Green, Canary
+### So Sánh Cụ Thể
 
-### 8. **Secret & Configuration Management**
-- Tách biệt config khỏi code
-- Quản lý sensitive data (passwords, tokens)
-- Update config không rebuild image
-
-### 9. **Multi-Tenancy**
-- Isolate workloads với Namespaces
-- Resource quotas per team/project
-- RBAC (Role-Based Access Control)
+| Tình huống | Manual | Kubernetes |
+|------------|--------|------------|
+| **Deploy 50 containers** | 50 lần SSH + commands | 1 command |
+| **Container crash** | Thức dậy 3 AM restart | Tự động restart |
+| **Traffic tăng 10x** | Mua server, setup, config (2 ngày) | Tự động scale (2 phút) |
+| **Rollback version cũ** | Revert từng server (30 phút) | 1 command (10 giây) |
+| **Load balancing** | Setup nginx/HAProxy manual | Built-in |
+| **Health checks** | Viết scripts riêng | Built-in |
 
 ---
 
-## 📊 So Sánh: Trước & Sau Kubernetes
+## 🎯 Các Tính Năng Cốt Lõi
 
-| Tình huống | Không có K8s | Có K8s |
-|------------|--------------|---------|
-| **Container chết** | SSH vào server, restart thủ công | Tự động restart trong vài giây |
-| **Traffic tăng đột biến** | Thêm container thủ công, cấu hình LB | Tự động scale, LB tự động |
-| **Update ứng dụng** | Downtime 5-10 phút | Zero downtime |
-| **Server chết** | Panic! Tạo server mới, deploy lại | Tự động migrate sang server khác |
-| **Quản lý 10 services** | 10 bộ config, script deploy khác nhau | Cấu hình tập trung, declarative |
-| **Multi-environment** | Maintain nhiều bộ script | Chỉ thay ConfigMap |
+### 1. Container Orchestration (Điều Phối Container)
 
----
+**TẠI SAO CẦN:**
+Khi bạn có 100 containers, không thể quản lý thủ công được!
 
-## 🔍 Kubernetes Không Phải Là Gì?
+**KUBERNETES LÀM GÌ:**
+```
+Bạn nói: "Tôi cần 10 containers chạy app này"
+K8s làm:
+├── Tìm servers phù hợp
+├── Deploy containers
+├── Theo dõi health
+├── Restart nếu chết
+└── Đảm bảo luôn có đủ 10 containers
+```
 
-**❌ K8s KHÔNG phải:**
-- **Container runtime:** K8s không run containers, nó dùng Docker/containerd
-- **CI/CD tool:** K8s deploy apps, nhưng không build code
-- **PaaS (Platform as a Service):** K8s là infrastructure layer, không phải app platform
-- **Magic solution:** Vẫn cần hiểu networking, storage, security...
-
-**✅ K8s LÀ:**
-- **Orchestration platform:** Quản lý containers
-- **Cluster management:** Quản lý nhiều servers như một hệ thống
-- **Automation engine:** Tự động hóa operations
-
----
-
-## 🏛️ Lịch Sử & Nguồn Gốc
-
-### Nguồn Gốc
-- **Năm 2014:** Google open-source Kubernetes
-- **Dựa trên:** Borg và Omega (hệ thống nội bộ của Google)
-- **Tên gọi:** "Kubernetes" (Hy Lạp) = "Người lái tàu" 🚢
-- **K8s:** Viết tắt (K + 8 chữ cái + s = Kubernetes)
-
-### Timeline
-- **2014:** Google release K8s
-- **2015:** v1.0, donate cho CNCF (Cloud Native Computing Foundation)
-- **2017:** Docker Inc. thêm K8s support vào Docker
-- **2018:** K8s thành industry standard
-- **2020+:** Đa số cloud providers hỗ trợ K8s (AWS EKS, GCP GKE, Azure AKS)
-
-### Tại Sao K8s Thành Công?
-1. **Open source:** Không bị lock-in vendor
-2. **Cloud-agnostic:** Chạy được mọi nơi (AWS, GCP, Azure, on-premise)
-3. **Community lớn:** Hàng nghìn contributors
-4. **Extensible:** Plugin architecture, dễ mở rộng
-5. **Industry standard:** Đa số công ty lớn đang dùng
-
----
-
-## 🎓 Khái Niệm Cần Nhớ
-
-### Orchestration
-Tự động hóa deployment, scaling, management của containers
-
-### Cluster
-Nhóm các servers (nodes) chạy chung, quản lý bởi K8s
-
-### Declarative
-Khai báo "muốn gì" thay vì "làm thế nào":
+**VÍ DỤ THỰC TẾ:**
 ```yaml
-# Declarative (K8s style)
-"Tôi muốn 3 containers web chạy"
-→ K8s tự xử lý
+# Bạn chỉ cần nói:
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: webapp
+spec:
+  replicas: 10  # Tôi muốn 10 containers
 
-# Imperative (traditional style)
-"Tạo container 1, đợi nó start, tạo container 2..."
+# Kubernetes lo phần còn lại!
 ```
 
-### Desired State
-Trạng thái mong muốn bạn khai báo → K8s đảm bảo trạng thái này luôn đúng
+---
+
+### 2. Self-Healing (Tự Phục Hồi)
+
+**TẠI SAO CẦN:**
+Server/Container chết là chuyện thường xuyên. Không thể trực 24/7 được!
+
+**KUBERNETES LÀM GÌ:**
+```
+Container chết
+    ↓
+K8s phát hiện (health check)
+    ↓
+K8s tự động start container mới
+    ↓
+Service tiếp tục hoạt động
+    ↓
+User không hề biết có sự cố!
+```
+
+**VÍ DỤ THỰC TẾ:**
+```
+22:00: Container bị lỗi và crash
+22:00:05: Kubernetes phát hiện
+22:00:10: Container mới đã chạy
+22:00:15: Service hoạt động bình thường
+
+Bạn: Đang ngủ ngon 😴
+User: Không hề biết có sự cố
+```
 
 ---
 
-## 📈 Ai Đang Dùng Kubernetes?
+### 3. Scaling (Mở Rộng Tự Động)
 
-### Tech Giants
-- **Google:** Chạy mọi thứ trên K8s (Gmail, YouTube, Search...)
-- **Microsoft:** Azure services
-- **Amazon:** Internal services (dù có AWS ECS)
-- **Netflix, Spotify, Airbnb, Uber:** Production workloads
+**TẠI SAO CẦN:**
+Traffic không đều - sáng ít, tối nhiều. Black Friday tăng 100x!
 
-### Industries
-- **E-commerce:** Shopify, eBay
-- **Finance:** ING Bank, Capital One
-- **Gaming:** Pokémon GO
-- **Media:** New York Times
+**KUBERNETES LÀM GÌ:**
 
-### Startups
-Hầu hết startups mới đều chọn K8s cho infrastructure
+**Horizontal Scaling** (tăng số lượng containers):
+```
+Traffic thấp (8 AM):
+  2 containers [□□]
+
+Traffic cao (8 PM):
+  10 containers [□□□□□□□□□□]
+
+Black Friday:
+  50 containers [□□□□□□□□□□...□□]
+```
+
+**VÍ DỤ THỰC TẾ:**
+```yaml
+# Horizontal Pod Autoscaler
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: webapp-hpa
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: webapp
+  minReplicas: 2    # Ít nhất 2 containers
+  maxReplicas: 50   # Nhiều nhất 50 containers
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70  # Scale khi CPU > 70%
+```
+
+**Kết quả:**
+- CPU thấp → K8s giảm xuống 2 containers (tiết kiệm tiền)
+- CPU cao → K8s tăng lên 50 containers (đảm bảo performance)
+- **Tự động, không cần can thiệp!**
 
 ---
 
-## 💡 Key Takeaways
+### 4. Service Discovery & Load Balancing
 
-1. **K8s = Orchestration tool** cho containers, giống "hệ điều hành cho cluster"
-2. **Giải quyết vấn đề thực tế:** Scaling, HA, deployment, management
-3. **Automation:** Giảm manual operations, tăng reliability
-4. **Cloud-native standard:** Industry standard cho container workloads
-5. **Không đơn giản:** Cần học và practice, nhưng đáng giá
+**TẠI SAO CẦN:**
+10 containers backend, frontend cần biết gọi container nào?
+
+**KUBERNETES LÀM GÌ:**
+```
+Frontend muốn gọi Backend API
+    ↓
+Gọi: http://backend-service
+    ↓
+Kubernetes tự động:
+├── Tìm backend containers đang healthy
+├── Phân phối request đều
+└── Load balance tự động
+
+Frontend không cần biết:
+❌ Backend chạy ở server nào
+❌ Backend có bao nhiêu containers
+❌ IP addresses là gì
+```
+
+**VÍ DỤ THỰC TẾ:**
+```yaml
+# Service - Kubernetes tự động load balance
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-service
+spec:
+  selector:
+    app: backend
+  ports:
+  - port: 80
+    targetPort: 8080
+
+# Frontend chỉ cần:
+curl http://backend-service/api/users
+# Kubernetes lo việc routing!
+```
 
 ---
 
-## ❓ Câu Hỏi Tự Kiểm Tra
+### 5. Rolling Updates & Rollbacks
 
-1. Kubernetes giải quyết vấn đề gì so với chạy Docker đơn thuần?
-2. Self-healing trong K8s hoạt động như thế nào?
-3. Declarative configuration khác gì với imperative?
-4. Tại sao K8s được gọi là "orchestration" tool?
-5. K8s có thể thay thế Docker không?
+**TẠI SAO CẦN:**
+Deploy code mới không được downtime!
+
+**KUBERNETES LÀM GÌ:**
+
+**Rolling Update** (Update lần lượt):
+```
+Version cũ: v1 (10 containers)
+[v1][v1][v1][v1][v1][v1][v1][v1][v1][v1]
+
+Step 1: Tạo 1 container v2, xóa 1 container v1
+[v1][v1][v1][v1][v1][v1][v1][v1][v1][v2]
+
+Step 2: Tạo 1 container v2, xóa 1 container v1  
+[v1][v1][v1][v1][v1][v1][v1][v1][v2][v2]
+
+...tiếp tục cho đến khi...
+
+Step 10: Tất cả đã là v2
+[v2][v2][v2][v2][v2][v2][v2][v2][v2][v2]
+
+✓ Zero downtime
+✓ Luôn có containers serving traffic
+```
+
+**Rollback nếu có lỗi:**
+```bash
+# Deploy version mới
+kubectl set image deployment/webapp webapp=myapp:v2
+
+# Oh no! Version v2 có bug!
+# Rollback về version cũ (10 giây)
+kubectl rollout undo deployment/webapp
+
+# Done! Về lại version v1 stable
+```
+
+---
+
+### 6. Configuration Management
+
+**TẠI SAO CẦN:**
+Mỗi môi trường (dev, staging, prod) có config khác nhau.
+
+**KUBERNETES LÀM GÌ:**
+```
+ConfigMaps: Non-sensitive config
+├── API URLs
+├── Feature flags
+├── Settings
+└── Environment variables
+
+Secrets: Sensitive data (encrypted)
+├── Database passwords
+├── API keys
+├── Certificates
+└── Tokens
+```
+
+**VÍ DỤ THỰC TẾ:**
+```yaml
+# ConfigMap
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+data:
+  API_URL: "https://api.production.com"
+  LOG_LEVEL: "info"
+  MAX_CONNECTIONS: "100"
+
+# Secret (encrypted at rest)
+apiVersion: v1
+kind: Secret
+metadata:
+  name: app-secrets
+type: Opaque
+data:
+  DB_PASSWORD: cGFzc3dvcmQxMjM=  # base64 encoded
+
+# Sử dụng trong Pod
+apiVersion: v1
+kind: Pod
+metadata:
+  name: myapp
+spec:
+  containers:
+  - name: app
+    image: myapp:v1
+    envFrom:
+    - configMapRef:
+        name: app-config
+    - secretRef:
+        name: app-secrets
+```
+
+---
+
+## 🏗️ Kiến Trúc Tổng Quan
+
+### Kubernetes Cluster
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                   KUBERNETES CLUSTER                    │
+├─────────────────────────────────────────────────────────┤
+│                                                         │
+│  ┌────────────────────────────────────────┐            │
+│  │     CONTROL PLANE (Bộ não)             │            │
+│  │  ┌──────────────────────────────────┐  │            │
+│  │  │  API Server                       │  │            │
+│  │  │  (Điểm vào duy nhất)             │  │            │
+│  │  └──────────────────────────────────┘  │            │
+│  │  ┌──────────────────────────────────┐  │            │
+│  │  │  etcd                            │  │            │
+│  │  │  (Database - lưu trạng thái)     │  │            │
+│  │  └──────────────────────────────────┘  │            │
+│  │  ┌──────────────────────────────────┐  │            │
+│  │  │  Scheduler                       │  │            │
+│  │  │  (Quyết định Pod chạy ở đâu)     │  │            │
+│  │  └──────────────────────────────────┘  │            │
+│  │  ┌──────────────────────────────────┐  │            │
+│  │  │  Controller Manager              │  │            │
+│  │  │  (Đảm bảo desired state)         │  │            │
+│  │  └──────────────────────────────────┘  │            │
+│  └────────────────────────────────────────┘            │
+│                                                         │
+│  ┌────────────────────────────────────────┐            │
+│  │     WORKER NODES (Thợ làm việc)       │            │
+│  │                                        │            │
+│  │  Node 1:                               │            │
+│  │  ├─ Pod 1 [Container A, Container B]  │            │
+│  │  ├─ Pod 2 [Container C]                │            │
+│  │  └─ Pod 3 [Container D, Container E]  │            │
+│  │                                        │            │
+│  │  Node 2:                               │            │
+│  │  ├─ Pod 4 [Container F]                │            │
+│  │  └─ Pod 5 [Container G]                │            │
+│  │                                        │            │
+│  │  Node 3:                               │            │
+│  │  ├─ Pod 6 [Container H]                │            │
+│  │  └─ Pod 7 [Container I, Container J]  │            │
+│  └────────────────────────────────────────┘            │
+│                                                         │
+└─────────────────────────────────────────────────────────┘
+```
+
+**Workflow đơn giản:**
+```
+1. Bạn: "kubectl create deployment webapp --image=myapp:v1"
+       ↓
+2. API Server: Nhận request
+       ↓
+3. etcd: Lưu trạng thái mong muốn
+       ↓
+4. Scheduler: "Đặt Pod này vào Node 2"
+       ↓
+5. Controller: "Đảm bảo Pod running"
+       ↓
+6. Node 2: Download image, start container
+       ↓
+7. Pod running! ✅
+```
+
+---
+
+## 📊 So Sánh: Trước vs Sau Kubernetes
+
+### Scenario: Deploy Microservices
+
+**TRƯỚC KUBERNETES:**
+```
+❌ 5 services × 3 environments × 4 servers = 60 manual deployments
+❌ Mỗi deploy: 15 phút
+❌ Total: 15 hours (gần 2 ngày làm việc!)
+❌ Lỗi 1 server → toàn bộ process phải làm lại
+❌ Scaling: Phải provision server mới (vài giờ)
+❌ Monitoring: 60 nơi khác nhau
+```
+
+**VỚI KUBERNETES:**
+```
+✅ 1 command: kubectl apply -f deployments/
+✅ Mỗi deploy: 5 phút
+✅ Total: 5 phút (nhanh hơn 180 lần!)
+✅ Lỗi → tự động rollback
+✅ Scaling: Tự động trong 30 giây
+✅ Monitoring: Centralized dashboard
+```
+
+---
+
+## 🎓 Kiểm Tra Hiểu Biết
+
+### Câu Hỏi Tự Kiểm Tra
+
+**1. Kubernetes giải quyết vấn đề gì?**
+<details>
+<summary>Xem đáp án</summary>
+
+- Tự động hóa deploy, scaling, management containers
+- Self-healing khi có lỗi
+- Load balancing tự động
+- Rolling updates zero-downtime
+- Resource management hiệu quả
+</details>
+
+**2. Self-healing hoạt động như thế nào?**
+<details>
+<summary>Xem đáp án</summary>
+
+1. Kubernetes liên tục check health của containers
+2. Phát hiện container không healthy/crashed
+3. Tự động start container mới thay thế
+4. Service tiếp tục hoạt động không gián đoạn
+</details>
+
+**3. Horizontal scaling là gì? Cho ví dụ.**
+<details>
+<summary>Xem đáp án</summary>
+
+Tăng/giảm số lượng containers dựa trên load:
+- Traffic thấp: 2 containers
+- Traffic cao: 10 containers
+- Black Friday: 50 containers
+
+Ví dụ: Web shop bình thường 5 containers, Black Friday tự động scale lên 50 containers.
+</details>
+
+**4. Tại sao cần Service trong Kubernetes?**
+<details>
+<summary>Xem đáp án</summary>
+
+- Containers có IP động, thay đổi liên tục
+- Service cung cấp stable endpoint (DNS name)
+- Tự động load balance giữa multiple containers
+- Service discovery cho các services khác
+</details>
+
+---
+
+## 💪 Bài Tập Thực Hành
+
+### Bài 1: Hiểu Workflow
+
+**Tình huống:** Bạn có webapp với 3 replicas. 1 Pod crash.
+
+**Câu hỏi:** Vẽ flow Kubernetes tự động phục hồi.
+
+<details>
+<summary>Xem đáp án</summary>
+
+```
+1. Pod 2 crash
+   [Pod 1] [Pod 2 ❌] [Pod 3]
+   
+2. kubelet phát hiện (health check fail)
+   
+3. kubelet báo API Server: "Pod 2 dead"
+   
+4. Controller Manager thấy: Desired=3, Actual=2
+   
+5. Controller tạo Pod mới
+   [Pod 1] [Pod 4 🆕] [Pod 3]
+   
+6. Scheduler đặt Pod 4 vào Node phù hợp
+   
+7. Node start Pod 4
+   [Pod 1] [Pod 4 ✅] [Pod 3]
+```
+</details>
+
+### Bài 2: So Sánh Scenarios
+
+**Tình huống:** Traffic tăng từ 100 req/s → 1000 req/s
+
+**Manual approach:** Bạn sẽ làm gì?
+**Kubernetes approach:** K8s sẽ làm gì?
+
+<details>
+<summary>Xem đáp án</summary>
+
+**Manual:**
+1. Phát hiện server overload (monitoring)
+2. Provision server mới (30 phút - vài giờ)
+3. Setup OS, dependencies
+4. Deploy application
+5. Configure load balancer
+6. Test
+Total: 2-4 giờ, rủi ro cao
+
+**Kubernetes:**
+1. HPA phát hiện CPU > 70%
+2. Tự động tạo thêm Pods
+3. Scheduler đặt vào Nodes available
+4. Service tự động load balance
+Total: 30 giây - 2 phút, tự động
+</details>
+
+---
+
+## 🎯 Key Takeaways
+
+### Ghi Nhớ 5 Điều Quan Trọng
+
+1. **Kubernetes = Tự động hóa quản lý containers**
+   - Không cần làm thủ công nữa
+   
+2. **Self-healing = Ngủ ngon hơn**
+   - Container chết → K8s tự restart
+   
+3. **Scaling = Tiết kiệm tiền + Performance**
+   - Tự động tăng/giảm theo load
+   
+4. **Rolling updates = Zero downtime**
+   - Deploy không ảnh hưởng users
+   
+5. **Declarative = Nói "muốn gì", không phải "làm thế nào"**
+   - Bạn: "Tôi muốn 10 Pods"
+   - K8s: "OK, để tôi lo!"
+
+---
+
+## 📚 Thuật Ngữ Cần Nhớ
+
+| Thuật Ngữ | Tiếng Việt | Ý Nghĩa |
+|-----------|------------|---------|
+| **Container** | Container | Đóng gói ứng dụng + dependencies |
+| **Pod** | Pod | Đơn vị nhỏ nhất, chứa 1+ containers |
+| **Node** | Node | Server/máy ảo chạy Pods |
+| **Cluster** | Cluster | Tập hợp các Nodes |
+| **Deployment** | Deployment | Quản lý Pods, cho phép rolling updates |
+| **Service** | Service | Stable endpoint để access Pods |
+| **Scaling** | Mở rộng | Tăng/giảm số lượng Pods/Nodes |
+| **Self-healing** | Tự phục hồi | Tự động thay thế resources lỗi |
 
 ---
 
 ## 🚀 Tiếp Theo
 
-Bây giờ bạn đã hiểu K8s là gì và tại sao cần nó.
+Bạn đã hiểu Kubernetes là gì và giải quyết vấn đề gì!
 
-👉 Tiếp theo: [1.2. So Sánh Kubernetes vs Docker](./02-k8s-vs-docker.md)
+**Next:** [1.2. So Sánh Kubernetes vs Docker →](./02-k8s-vs-docker.md)
 
-Chúng ta sẽ đi sâu vào sự khác biệt giữa K8s và Docker, biết khi nào dùng cái gì.
+Ở phần tiếp theo, chúng ta sẽ tìm hiểu sự khác biệt giữa Kubernetes và Docker, khi nào nên dùng cái nào.
 
 ---
 
-[⬅️ Về Phần 1: Introduction](./README.md) | [⬆️ Về Mục Lục Chính](../README.md)
-
+[🏠 Mục Lục Chính](../README.md) | [📂 Phần 1: Introduction](./README.md) | [➡️ 1.2. K8s vs Docker](./02-k8s-vs-docker.md)

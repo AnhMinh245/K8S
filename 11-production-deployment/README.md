@@ -1,594 +1,371 @@
-# 📘 Phần 11: Triển Khai K8s Trên Production
+# 📘 Phần 11: Production Deployment
 
-> Kiến thức thực tế để deploy và vận hành Kubernetes trong môi trường production
-
----
-
-## 🎯 Mục Tiêu Phần Này
-
-Sau khi hoàn thành Phần 11, bạn sẽ:
-
-✅ **Biết setup** production cluster (managed vs self-hosted)  
-✅ **Hiểu** deployment strategies và best practices  
-✅ **Implement** CI/CD pipeline với K8s  
-✅ **Secure** cluster theo security standards  
-✅ **Setup** monitoring và logging đầy đủ  
-✅ **Backup** và disaster recovery  
-✅ **Optimize** cost và performance  
-✅ **Troubleshoot** production issues  
+> Deploy K8s applications to production
 
 ---
 
-## 📚 Nội Dung
+## 🎯 Mục Tiêu
 
-### [11.1. Production Cluster Setup](./01-cluster-setup.md) ⭐⭐⭐⭐⭐
-**Thời gian**: 90-120 phút
-
-**Nội dung:**
-- Managed Kubernetes (GKE, EKS, AKS) vs Self-Hosted
-- Cluster sizing và node types
-- Network architecture (VPC, subnets, security groups)
-- High availability setup (multi-zone/region)
-- Control plane HA
-- Cluster autoscaling
-- Node pools và taints/tolerations
-
-**Key Topics:**
-```
-✓ Chọn cloud provider phù hợp
-✓ Infrastructure as Code (Terraform)
-✓ Network design (private vs public subnets)
-✓ Multi-AZ deployment
-✓ Bastion hosts và secure access
-```
+✅ **Production cluster setup** (GKE/EKS)  
+✅ **CI/CD integration** (GitLab CI, ArgoCD)  
+✅ **Security hardening** (RBAC, PSS, Network Policies)  
+✅ **Monitoring & Logging** stack  
+✅ **Backup & DR** strategies  
+✅ **Cost optimization**  
+✅ **Troubleshooting** production issues  
 
 ---
 
-### [11.2. Deployment Strategies](./02-deployment-strategies.md) ⭐⭐⭐⭐⭐
-**Thời gian**: 60-90 phút
+## 📚 Production Checklist
 
-**Nội dung:**
-- Blue-Green Deployment
-- Canary Deployment
-- Rolling Deployment (advanced)
-- A/B Testing
-- Feature Flags
-- Rollback strategies
-
-**Key Topics:**
-```
-✓ Zero-downtime deployments
-✓ Traffic shifting với Istio/NGINX Ingress
-✓ Automated rollback
-✓ Progressive delivery
-✓ Testing in production
-```
-
----
-
-### [11.3. CI/CD Integration](./03-cicd-integration.md) ⭐⭐⭐⭐⭐
-**Thời gian**: 90-120 phút
-
-**Nội dung:**
-- GitOps workflow (ArgoCD, Flux)
-- CI pipelines (GitLab CI, GitHub Actions, Jenkins)
-- Image building và registry
-- Automated testing
-- Security scanning (Trivy, Snyk)
-- Deployment automation
-
-**Key Topics:**
-```
-✓ Git as single source of truth
-✓ Automated deployments
-✓ Container scanning
-✓ Secrets management trong CI/CD
-✓ Environment promotion (dev → staging → prod)
-```
-
----
-
-### [11.4. Security Best Practices](./04-security-hardening.md) ⭐⭐⭐⭐⭐
-**Thời gian**: 90-120 phút
-
-**Nội dung:**
-- RBAC (Role-Based Access Control)
-- Pod Security Standards/Policies
-- Network Policies
-- Secrets management (External Secrets, Vault)
-- Image security
-- Runtime security (Falco)
-- Compliance và auditing
-
-**Key Topics:**
-```
-✓ Least privilege principle
-✓ Zero-trust networking
-✓ Encrypted secrets
-✓ Security scanning
-✓ Compliance frameworks (CIS, PCI-DSS)
-```
-
----
-
-### [11.5. Monitoring & Logging](./05-monitoring-logging.md) ⭐⭐⭐⭐⭐
-**Thời gian**: 120-180 phút
-
-**Nội dung:**
-- Prometheus + Grafana stack
-- Metrics collection và visualization
-- Log aggregation (ELK, Loki)
-- Distributed tracing (Jaeger)
-- Alerting (AlertManager, PagerDuty)
-- SLI/SLO/SLA implementation
-
-**Key Topics:**
-```
-✓ Golden signals (latency, traffic, errors, saturation)
-✓ Custom metrics
-✓ Log retention policies
-✓ Alert fatigue prevention
-✓ On-call playbooks
-```
-
----
-
-### [11.6. Backup & Disaster Recovery](./06-backup-dr.md) ⭐⭐⭐⭐
-**Thời gian**: 60-90 phút
-
-**Nội dung:**
-- Backup strategies (Velero)
-- etcd backup/restore
-- Database backup
-- PersistentVolume snapshots
-- Multi-region DR
-- RTO/RPO planning
-
-**Key Topics:**
-```
-✓ Automated backups
-✓ Recovery procedures
-✓ Testing DR plans
-✓ Cross-region replication
-✓ Business continuity
-```
-
----
-
-### [11.7. Cost Optimization](./07-cost-optimization.md) ⭐⭐⭐⭐
-**Thời gian**: 60-90 phút
-
-**Nội dung:**
-- Resource right-sizing
-- Spot/Preemptible instances
-- Autoscaling strategies
-- Cost monitoring tools (Kubecost)
-- Namespace quotas
-- Pod priorities
-- Efficient storage usage
-
-**Key Topics:**
-```
-✓ Cost visibility
-✓ Resource optimization
-✓ Savings plans
-✓ Chargeback/showback
-✓ Idle resource detection
-```
-
----
-
-### [11.8. Troubleshooting Production Issues](./08-troubleshooting.md) ⭐⭐⭐⭐⭐
-**Thời gian**: 90-120 phút
-
-**Nội dung:**
-- Common production issues
-- Debugging workflows
-- Performance troubleshooting
-- Network issues
-- Storage issues
-- Application crashes
-- Resource exhaustion
-- Tools và commands
-
-**Key Topics:**
-```
-✓ Systematic debugging approach
-✓ kubectl debug techniques
-✓ Log analysis
-✓ Metrics interpretation
-✓ War room procedures
-```
-
----
-
-### [11.9. Real-World Case Studies](./09-case-studies.md) ⭐⭐⭐⭐
-**Thời gian**: 60-90 phút
-
-**Nội dung:**
-- E-commerce platform deployment
-- Microservices migration
-- Multi-tenant SaaS
-- Data pipeline on K8s
-- Gaming backend
-- Lessons learned
-- War stories
-
-**Key Topics:**
-```
-✓ Architecture decisions
-✓ Scaling challenges
-✓ Incident responses
-✓ Migration strategies
-✓ Success metrics
-```
-
----
-
-## 🎯 Learning Approach
-
-### Thứ Tự Học Recommend
-
-**1. Fundamental Production Skills (Học Trước):**
-```
-├─ 11.1. Cluster Setup (must know)
-├─ 11.4. Security (critical)
-├─ 11.5. Monitoring & Logging (critical)
-└─ 11.8. Troubleshooting (essential)
-```
-
-**2. Advanced Topics (Học Tiếp):**
-```
-├─ 11.2. Deployment Strategies
-├─ 11.3. CI/CD Integration
-├─ 11.6. Backup & DR
-└─ 11.7. Cost Optimization
-```
-
-**3. Real-World Learning:**
-```
-└─ 11.9. Case Studies (học cuối để consolidate)
-```
-
----
-
-## 💻 Hands-On Projects
-
-### Project 1: Setup Production Cluster
-```
-Goal: Tạo production-ready K8s cluster
-
-Tasks:
-├─ Setup GKE/EKS cluster với Terraform
-├─ Configure VPC, subnets, security groups
-├─ Multi-AZ deployment
-├─ Setup cluster autoscaling
-└─ Configure IAM/RBAC
-
-Deliverable: Infrastructure as Code repository
-```
-
-### Project 2: Complete CI/CD Pipeline
-```
-Goal: Automated deployment pipeline
-
-Tasks:
-├─ Setup GitLab CI/GitHub Actions
-├─ Build và push Docker images
-├─ Security scanning
-├─ Deploy với ArgoCD/Flux
-└─ Automated rollback
-
-Deliverable: Working CI/CD pipeline
-```
-
-### Project 3: Monitoring Stack
-```
-Goal: Comprehensive observability
-
-Tasks:
-├─ Deploy Prometheus + Grafana
-├─ Setup log aggregation (Loki)
-├─ Configure alerting
-├─ Create dashboards
-└─ Setup distributed tracing
-
-Deliverable: Full monitoring stack
-```
-
-### Project 4: Security Hardening
-```
-Goal: Secure cluster theo best practices
-
-Tasks:
-├─ Implement RBAC
-├─ Setup Pod Security Standards
-├─ Network Policies
-├─ External secrets với Vault
-└─ Security scanning
-
-Deliverable: Hardened cluster
-```
-
----
-
-## 📊 Production Readiness Checklist
-
-### Infrastructure
-```
-□ Multi-AZ/region deployment
-□ Cluster autoscaling configured
-□ Node pools optimized
-□ Network policies in place
-□ LoadBalancer/Ingress configured
-□ DNS và certificates setup
+### Cluster Setup
+```yaml
+✓ Managed K8s (GKE, EKS, AKS)
+✓ Multi-zone for HA
+✓ Node pools với autoscaling
+✓ Network policies enabled
+✓ Private cluster (if possible)
+✓ Terraform for IaC
 ```
 
 ### Security
-```
-□ RBAC configured
-□ Pod Security Standards enforced
-□ Network Policies active
-□ Secrets encrypted
-□ Image scanning automated
-□ Audit logging enabled
-```
-
-### Monitoring & Logging
-```
-□ Metrics collection (Prometheus)
-□ Dashboards (Grafana)
-□ Log aggregation (ELK/Loki)
-□ Distributed tracing (Jaeger)
-□ Alerting configured
-□ On-call rotation setup
-```
-
-### Deployment
-```
-□ CI/CD pipeline functional
-□ GitOps workflow
-□ Automated testing
-□ Canary/blue-green capability
-□ Rollback procedures tested
-```
-
-### Disaster Recovery
-```
-□ Backup automation (Velero)
-□ etcd backup schedule
-□ DR plan documented
-□ Recovery tested
-□ RTO/RPO defined
-```
-
-### Cost Management
-```
-□ Resource quotas set
-□ Cost monitoring tools
-□ Autoscaling optimized
-□ Spot instances utilized
-□ Idle resource alerts
-```
-
----
-
-## 🏆 Real-World Scenarios
-
-### Scenario 1: High-Traffic Event (Black Friday)
-```
-Preparation:
-├─ Capacity planning
-├─ Pre-scale infrastructure
-├─ Optimize autoscaling
-├─ War room setup
-└─ Rollback procedures ready
-
-During Event:
-├─ Monitor metrics closely
-├─ Quick incident response
-├─ Dynamic scaling
-└─ Performance optimization
-
-Post-Event:
-├─ Cost analysis
-├─ Performance review
-└─ Lessons learned
-```
-
-### Scenario 2: Security Incident
-```
-Detection:
-├─ Security alerts triggered
-├─ Abnormal behavior detected
-└─ Log analysis
-
-Response:
-├─ Isolate affected resources
-├─ Investigate breach
-├─ Apply patches
-└─ Communication plan
-
-Recovery:
-├─ Restore from backup
-├─ Security hardening
-└─ Post-mortem
-```
-
-### Scenario 3: Database Migration
-```
-Planning:
-├─ Migration strategy (blue-green)
-├─ Data sync setup
-├─ Rollback plan
-└─ Testing in staging
-
-Execution:
-├─ DNS cutover
-├─ Data validation
-├─ Performance monitoring
-└─ Gradual traffic shift
-
-Post-Migration:
-├─ Monitoring
-├─ Cleanup old resources
-└─ Documentation update
-```
-
----
-
-## 💡 Production Tips
-
-### DO ✅
-```
-✓ Automate everything possible
-✓ Document runbooks
-✓ Test disaster recovery
-✓ Monitor costs regularly
+```yaml
+✓ RBAC configured
+✓ Pod Security Standards enforced
+✓ Network Policies implemented
+✓ Secrets encrypted at rest
+✓ Image scanning (Trivy)
+✓ Admission controllers (OPA)
 ✓ Regular security audits
-✓ Keep K8s version up-to-date
-✓ Use Infrastructure as Code
-✓ Implement proper logging
-✓ Have rollback plans
-✓ Practice chaos engineering
 ```
 
-### DON'T ❌
-```
-✗ Manual deployments
-✗ Root containers
-✗ Secrets in plain text
-✗ No resource limits
-✗ Single point of failure
-✗ No backups
-✗ Ignore alerts
-✗ Skip testing
-✗ No documentation
-✗ Over-provision resources
+### Observability
+```yaml
+✓ Metrics: Prometheus + Grafana
+✓ Logs: Loki or ELK
+✓ Traces: Jaeger
+✓ Alerting: AlertManager
+✓ Dashboards: Golden signals
+✓ SLIs/SLOs defined
 ```
 
----
-
-## 🎓 Skills Matrix
-
-### Junior DevOps/SRE
-```
-Focus:
-├─ 11.1. Cluster Setup (basic)
-├─ 11.5. Monitoring basics
-├─ 11.8. Basic troubleshooting
-└─ Follow established procedures
+### CI/CD
+```yaml
+✓ GitOps (ArgoCD or Flux)
+✓ Automated testing
+✓ Security scanning
+✓ Progressive delivery (canary)
+✓ Rollback automation
+✓ Image signing/verification
 ```
 
-### Mid-Level DevOps/SRE
-```
-Focus:
-├─ All sections (good understanding)
-├─ CI/CD implementation
-├─ Security hardening
-├─ Incident response
-└─ Performance optimization
-```
-
-### Senior DevOps/SRE
-```
-Focus:
-├─ Architecture design
-├─ Complex troubleshooting
-├─ Capacity planning
-├─ Cost optimization
-├─ Team mentoring
-└─ Process improvement
+### Backup & DR
+```yaml
+✓ etcd backups (automated)
+✓ Application data backups (Velero)
+✓ Multi-region strategy
+✓ RTO/RPO defined
+✓ DR testing regular
 ```
 
 ---
 
-## 🚀 Certification Relevance
+## 🚀 Deployment Strategies
 
-### CKA (Certified Kubernetes Administrator)
-```
-Relevant sections:
-├─ 11.1. Cluster Setup ⭐⭐⭐
-├─ 11.4. Security (RBAC) ⭐⭐⭐
-├─ 11.6. Backup & DR ⭐⭐⭐
-└─ 11.8. Troubleshooting ⭐⭐⭐
-```
+### Rolling Update (Default)
+```yaml
+strategy:
+  type: RollingUpdate
+  rollingUpdate:
+    maxSurge: 1
+    maxUnavailable: 0
 
-### CKS (Certified Kubernetes Security Specialist)
-```
-Relevant sections:
-├─ 11.4. Security Hardening ⭐⭐⭐⭐⭐
-├─ 11.3. CI/CD (security scanning) ⭐⭐⭐
-└─ 11.5. Monitoring (security events) ⭐⭐⭐
+# Zero downtime
+# Gradual rollout
+# Easy rollback
 ```
 
-### CKAD (Certified Kubernetes Application Developer)
+### Blue-Green
 ```
-Relevant sections:
-├─ 11.2. Deployment Strategies ⭐⭐⭐
-├─ 11.3. CI/CD Integration ⭐⭐⭐
-└─ 11.8. Troubleshooting ⭐⭐⭐
+Blue (current): 100% traffic
+Green (new): Deploy, test
+Switch: Route 100% to Green
+Rollback: Switch back to Blue
+```
+
+### Canary
+```
+v1.0: 90% traffic
+v2.0: 10% traffic (canary)
+Monitor metrics
+Gradually increase v2.0 traffic
+Full rollout or rollback based on metrics
 ```
 
 ---
 
-## 📚 Prerequisites
+## 🏗️ Infrastructure as Code
 
-**Trước khi học Phần 11, bạn nên:**
-- ✅ Hoàn thành Phần 1-8 (fundamentals)
-- ✅ Có kinh nghiệm deploy apps trên K8s
-- ✅ Hiểu kubectl commands cơ bản
-- ✅ Biết YAML và command line
-- ✅ Có access vào cloud provider (GCP/AWS/Azure)
+**Terraform Example:**
+```hcl
+# GKE Cluster
+resource "google_container_cluster" "primary" {
+  name     = "production-cluster"
+  location = "us-central1"
+  
+  # Multi-zone for HA
+  node_locations = [
+    "us-central1-a",
+    "us-central1-b",
+    "us-central1-c",
+  ]
+  
+  # Network
+  network_policy {
+    enabled = true
+  }
+  
+  # Workload Identity
+  workload_identity_config {
+    workload_pool = "${var.project}.svc.id.goog"
+  }
+}
 
----
-
-## 🎯 Khi Nào "Production Ready"?
-
-**Bạn đã production-ready khi:**
-
-✅ Cluster có HA (multi-AZ)  
-✅ Security hardened (RBAC, PSP, Network Policies)  
-✅ Monitoring & alerting hoạt động  
-✅ CI/CD automated  
-✅ Backup & DR tested  
-✅ Có runbooks và documentation  
-✅ Team trained và on-call ready  
-✅ Cost visibility và optimization  
-
----
-
-## 🌟 Learning Outcome
-
-**Sau khi hoàn thành Phần 11:**
-
-🎓 **Kiến thức:**
-- Hiểu production architecture patterns
-- Biết security best practices
-- Nắm deployment strategies
-
-🛠️ **Kỹ năng:**
-- Setup production clusters
-- Implement CI/CD pipelines
-- Troubleshoot production issues
-- Optimize costs và performance
-
-💼 **Career:**
-- Ready cho DevOps/SRE roles
-- Có thể manage production K8s
-- Interview confidence cao
-
----
-
-## 🚀 Bắt Đầu
-
-**Recommended starting point:**
-
-👉 [**11.1. Production Cluster Setup**](./01-cluster-setup.md)
-
-Học cách setup cluster production-ready từ đầu
+# Node Pool
+resource "google_container_node_pool" "primary_nodes" {
+  cluster    = google_container_cluster.primary.name
+  node_count = 3
+  
+  autoscaling {
+    min_node_count = 3
+    max_node_count = 10
+  }
+  
+  node_config {
+    machine_type = "n1-standard-4"
+    disk_size_gb = 100
+    
+    oauth_scopes = [
+      "https://www.googleapis.com/auth/cloud-platform"
+    ]
+    
+    labels = {
+      environment = "production"
+    }
+  }
+}
+```
 
 ---
 
-[⬅️ Phần 10: Observability](../10-observability-fundamentals/README.md) | [🏠 Mục Lục Chính](../README.md)
+## 🔒 Security Hardening
 
+**Pod Security Standards:**
+```yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: production
+  labels:
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted
+```
+
+**Network Policy (Default Deny):**
+```yaml
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: production
+spec:
+  podSelector: {}
+  policyTypes:
+  - Ingress
+  - Egress
+```
+
+**RBAC:**
+```yaml
+# Principle of least privilege
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: developer
+  namespace: development
+rules:
+- apiGroups: ["", "apps"]
+  resources: ["pods", "deployments", "services"]
+  verbs: ["get", "list", "watch", "create", "update", "patch"]
+  # NO delete in production!
+```
+
+---
+
+## 📊 Monitoring Stack
+
+**Prometheus + Grafana:**
+```bash
+# Install kube-prometheus-stack
+helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+helm install prometheus prometheus-community/kube-prometheus-stack \
+  --namespace monitoring \
+  --create-namespace \
+  --values custom-values.yaml
+
+# Includes:
+# - Prometheus (metrics)
+# - Grafana (dashboards)
+# - AlertManager (alerts)
+# - Node Exporter (node metrics)
+# - kube-state-metrics (K8s metrics)
+```
+
+**Essential Dashboards:**
+- Cluster overview
+- Node metrics
+- Pod metrics
+- Deployment status
+- Ingress traffic
+- etcd health
+
+---
+
+## 🔄 GitOps với ArgoCD
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: webapp-production
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/company/k8s-manifests
+    targetRevision: main
+    path: production/webapp
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: production
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+    - CreateNamespace=true
+```
+
+---
+
+## 💰 Cost Optimization
+
+**Strategies:**
+```yaml
+1. RIGHT-SIZING
+   ✓ Set appropriate resource requests/limits
+   ✓ Monitor actual usage
+   ✓ Adjust based on data
+
+2. AUTOSCALING
+   ✓ HPA for Pods
+   ✓ Cluster Autoscaler for Nodes
+   ✓ VPA for resource optimization
+
+3. SPOT/PREEMPTIBLE INSTANCES
+   ✓ Use for non-critical workloads
+   ✓ Can save 60-80% costs
+   ✓ Implement graceful handling
+
+4. RESOURCE CLEANUP
+   ✓ Delete unused PVCs
+   ✓ Remove old Docker images
+   ✓ Clean up failed Jobs
+
+5. MONITORING
+   ✓ Kubecost for cost visibility
+   ✓ Track costs per namespace/team
+   ✓ Set budget alerts
+```
+
+---
+
+## 🐛 Production Troubleshooting
+
+**Common Issues:**
+
+```bash
+# 1. Pod CrashLoopBackOff
+kubectl describe pod <pod-name>
+kubectl logs <pod-name> --previous
+
+# 2. ImagePullBackOff
+kubectl describe pod <pod-name>
+# Check imagePullSecrets
+
+# 3. Service not reachable
+kubectl get endpoints <service-name>
+# Check selector matches Pod labels
+
+# 4. High resource usage
+kubectl top pods
+kubectl top nodes
+# Check HPA status
+
+# 5. Network issues
+kubectl exec <pod> -- curl <service>
+# Check Network Policies
+
+# 6. PVC pending
+kubectl describe pvc <pvc-name>
+# Check StorageClass exists
+
+# 7. Node NotReady
+kubectl describe node <node-name>
+# Check kubelet logs
+```
+
+---
+
+## 🎯 Production Day-1 Checklist
+
+```yaml
+Before Go-Live:
+✓ Load testing completed
+✓ Disaster recovery tested
+✓ Monitoring/alerting configured
+✓ Runbooks documented
+✓ On-call rotation established
+✓ Backup verified
+✓ Security scan passed
+✓ Cost estimates reviewed
+✓ Stakeholder approval
+
+After Go-Live:
+✓ Monitor metrics closely
+✓ Check logs for errors
+✓ Verify backup running
+✓ Test rollback procedure
+✓ Document incidents
+✓ Collect feedback
+✓ Plan improvements
+```
+
+---
+
+## 🎉 You're Production Ready!
+
+**Remember:**
+- Start small, iterate
+- Monitor everything
+- Automate toil
+- Document learnings
+- Share knowledge
+- Stay updated
+
+**Good luck with your production deployment! 🚀**
+
+---
+
+[⬅️ Phần 10](../10-observability-fundamentals/README.md) | [🏠 Mục Lục](../README.md)

@@ -1,555 +1,965 @@
-# 4.3. StatefulSet - Cho Ứng Dụng Stateful
+# 4.3. StatefulSet - Stateful Applications
 
-> StatefulSet cho ứng dụng cần persistent identity và ordered deployment
-
----
-
-## 🎯 StatefulSet Là Gì?
-
-**StatefulSet** = Workload controller cho stateful applications, đảm bảo:
-- **Stable network identity** (tên Pod cố định)
-- **Ordered deployment/scaling** (theo thứ tự 0, 1, 2...)
-- **Persistent storage** per Pod
+> Quản lý ứng dụng với persistent identity và ordered deployment
 
 ---
 
-## 🏢 Ví Dụ Thực Tế
+## 🎯 Mục Tiêu Học
 
-**Deployment = Nhân viên văn phòng**
-```
-Nhân viên:
-  - Tên: Random (John-abc123, Jane-xyz789)
-  - Bàn làm việc: Ngồi đâu cũng được
-  - Thay thế: Người mới làm việc ngay
-  → Stateless
-```
+Sau khi học xong phần này, bạn sẽ:
+- ✅ Hiểu **StatefulSet là gì** và **khác Deployment như thế nào**
+- ✅ Biết **khi nào dùng** StatefulSet
+- ✅ Hiểu **Pod identity** và **stable network**
+- ✅ Quản lý **persistent storage** cho stateful apps
+- ✅ Deploy **databases, caches** trong Kubernetes
+- ✅ **Scaling và updates** stateful applications
 
-**StatefulSet = Nhà khoa học trong lab**
+---
+
+## 📦 StatefulSet Là Gì?
+
+### Định Nghĩa
+
+**StatefulSet** = Controller cho stateful applications, provides:
+- **Stable, unique network identity**
+- **Stable, persistent storage**
+- **Ordered, graceful deployment và scaling**
+- **Ordered, automated rolling updates**
+
+### Giải Thích Bằng Ví Dụ
+
+**Deployment vs StatefulSet:**
+
 ```
-Nhà khoa học:
-  - Tên: Cố định (scientist-0, scientist-1)
-  - Lab: Riêng, có thiết bị cá nhân
-  - Thay thế: Cần bàn giao thiết bị, data
-  - Thứ tự: Trưởng nhóm (0) setup trước
-  → Stateful
+🏢 CÔNG TY (Cluster)
+
+DEPLOYMENT = Nhân viên thay thế được:
+├── Developer 1, 2, 3 (interchangeable)
+├── Ai làm cũng được
+├── Nghỉ việc? Tuyển người mới ngay
+└── Không cần theo dõi history cá nhân
+
+Use cases: Web servers, API servers (stateless)
+
+STATEFULSET = Nhân viên có vai trò cố định:
+├── CEO (database-0) - Luôn là người này
+├── CTO (database-1) - Luôn là người này
+├── CFO (database-2) - Luôn là người này
+├── Không thể thay thế random
+├── Có sổ sách riêng (persistent storage)
+└── Phải theo thứ tự (CEO → CTO → CFO)
+
+Use cases: Databases, caches (stateful)
 ```
 
 ---
 
-## 🆚 StatefulSet vs Deployment
+## 🤔 TẠI SAO Cần StatefulSet?
 
-| Feature | Deployment | StatefulSet |
-|---------|------------|-------------|
-| **Pod names** | Random (web-abc123) | Predictable (web-0, web-1) |
-| **Network identity** | Changes on restart | Stable (web-0.service) |
-| **Pod creation** | Parallel (all at once) | Sequential (0 → 1 → 2) |
-| **Pod deletion** | Random order | Reverse order (2 → 1 → 0) |
-| **Storage** | Shared or ephemeral | Persistent per Pod |
-| **Use case** | Stateless apps | Databases, distributed systems |
+### Deployment Limitations cho Stateful Apps
 
----
+**Problem với Deployment cho databases:**
 
-## 📝 StatefulSet YAML
+```bash
+# Deployment với 3 PostgreSQL replicas
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres
+spec:
+  replicas: 3
+  template:
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:14
+
+# Problems:
+❌ Random Pod names: postgres-abc12, postgres-def34, postgres-ghi56
+   → Can't identify primary vs replica!
+
+❌ No stable network identity
+   → Connections break when Pod restarts (new IP)
+
+❌ No persistent storage guarantee
+   → Data lost when Pod dies!
+
+❌ Random order deployment
+   → Can't ensure primary starts before replicas
+
+❌ No stable DNS names
+   → Can't connect to specific database instance
+```
+
+### StatefulSet Solution
 
 ```yaml
-apiVersion: v1
-kind: Service
-metadata:
-  name: mysql
-  labels:
-    app: mysql
-spec:
-  ports:
-  - port: 3306
-    name: mysql
-  clusterIP: None  # Headless Service ← Important!
-  selector:
-    app: mysql
----
+# StatefulSet với 3 PostgreSQL replicas
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: mysql
+  name: postgres
 spec:
-  serviceName: mysql  # Headless Service name
   replicas: 3
-  selector:
-    matchLabels:
-      app: mysql
+  serviceName: postgres
   template:
-    metadata:
-      labels:
-        app: mysql
     spec:
       containers:
-      - name: mysql
-        image: mysql:5.7
-        ports:
-        - containerPort: 3306
-          name: mysql
-        env:
-        - name: MYSQL_ROOT_PASSWORD
-          valueFrom:
-            secretKeyRef:
-              name: mysql-secret
-              key: password
+      - name: postgres
+        image: postgres:14
+
+# Benefits:
+✓ Predictable names: postgres-0, postgres-1, postgres-2
+  → postgres-0 = primary, postgres-1,2 = replicas
+
+✓ Stable network identity:
+  → postgres-0.postgres.default.svc.cluster.local
+  → Always same DNS name, even after restart
+
+✓ Persistent storage per Pod:
+  → postgres-0 gets PVC: data-postgres-0
+  → postgres-1 gets PVC: data-postgres-1
+  → Data survives Pod restarts!
+
+✓ Ordered deployment:
+  → postgres-0 starts first
+  → postgres-1 starts after postgres-0 ready
+  → postgres-2 starts after postgres-1 ready
+
+✓ Stable DNS for each Pod:
+  → Can connect to postgres-0 specifically
+```
+
+---
+
+## 🏗️ StatefulSet Features
+
+### 1. Stable Pod Identity
+
+**Deployment Pods:**
+```
+Random names (hash suffix):
+├── webapp-7d4b7c9d8f-abc12
+├── webapp-7d4b7c9d8f-def34
+└── webapp-7d4b7c9d8f-ghi56
+
+Pod restarts → New name:
+webapp-7d4b7c9d8f-abc12 (old) → webapp-7d4b7c9d8f-xyz99 (new)
+```
+
+**StatefulSet Pods:**
+```
+Predictable names (ordinal suffix):
+├── postgres-0
+├── postgres-1
+└── postgres-2
+
+Pod restarts → Same name:
+postgres-0 (old) → postgres-0 (new)
+Always postgres-0!
+```
+
+---
+
+### 2. Stable Network Identity
+
+**Headless Service + StatefulSet:**
+
+```yaml
+# Headless Service (clusterIP: None)
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+spec:
+  clusterIP: None  # Headless!
+  selector:
+    app: postgres
+  ports:
+  - port: 5432
+
+# StatefulSet references Service
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+spec:
+  serviceName: postgres  # Links to Headless Service
+  replicas: 3
+```
+
+**DNS Names:**
+```
+Each Pod gets stable DNS:
+
+postgres-0.postgres.default.svc.cluster.local
+postgres-1.postgres.default.svc.cluster.local
+postgres-2.postgres.default.svc.cluster.local
+
+Even after Pod restart:
+postgres-0 dies → recreated → SAME DNS name!
+
+Applications can connect to:
+- Specific Pod: postgres-0.postgres
+- All Pods: postgres (Service name)
+```
+
+---
+
+### 3. Ordered Deployment
+
+**Deployment:** All Pods created simultaneously (parallel)
+
+**StatefulSet:** Sequential creation
+
+```
+StatefulSet: postgres, replicas: 3
+
+Step 1: Create postgres-0
+├── Create Pod postgres-0
+├── Wait until Running AND Ready
+└── Only then proceed to Step 2
+
+Step 2: Create postgres-1
+├── Create Pod postgres-1
+├── Wait until Running AND Ready
+└── Only then proceed to Step 3
+
+Step 3: Create postgres-2
+├── Create Pod postgres-2
+├── Wait until Running AND Ready
+└── Deployment complete!
+
+Order guaranteed: 0 → 1 → 2
+```
+
+**Why needed?**
+```
+Database replication setup:
+1. postgres-0 (Primary) must start first
+2. postgres-1 (Replica) connects to postgres-0
+3. postgres-2 (Replica) connects to postgres-0
+
+If parallel: Replicas might start before Primary!
+→ Connection failures
+→ Setup broken
+```
+
+---
+
+### 4. Ordered Scaling
+
+**Scale Up:**
+```
+Current: postgres-0, postgres-1, postgres-2 (3 Pods)
+Scale to: 5 replicas
+
+Order:
+1. Create postgres-3, wait Ready
+2. Create postgres-4, wait Ready
+
+New Pods added sequentially: 3 → 4
+```
+
+**Scale Down:**
+```
+Current: postgres-0, postgres-1, postgres-2, postgres-3, postgres-4 (5 Pods)
+Scale to: 3 replicas
+
+Order:
+1. Delete postgres-4, wait Terminated
+2. Delete postgres-3, wait Terminated
+
+Pods deleted in REVERSE order: 4 → 3
+(Always deletes highest ordinal first)
+```
+
+---
+
+### 5. Persistent Storage
+
+**volumeClaimTemplates:**
+
+```yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+spec:
+  replicas: 3
+  serviceName: postgres
+  template:
+    spec:
+      containers:
+      - name: postgres
+        image: postgres:14
         volumeMounts:
         - name: data
-          mountPath: /var/lib/mysql
-  volumeClaimTemplates:  # PVC per Pod
+          mountPath: /var/lib/postgresql/data
+  
+  # Persistent storage template
+  volumeClaimTemplates:
   - metadata:
       name: data
     spec:
-      accessModes: [ "ReadWriteOnce" ]
+      accessModes: ["ReadWriteOnce"]
       resources:
         requests:
           storage: 10Gi
 ```
 
----
-
-## 🔄 StatefulSet Deployment Flow
-
-### Initial Creation
-
+**What happens:**
 ```
-kubectl apply -f statefulset.yaml
+StatefulSet creates 3 Pods:
 
-Step 1: Create mysql-0
-  - Create PVC: data-mysql-0 (10Gi)
-  - Wait for PVC bound
-  - Create Pod: mysql-0
-  - Wait for Pod Running and Ready
+postgres-0:
+├── Pod: postgres-0
+└── PVC: data-postgres-0 (10Gi)
+    └── Bound to PersistentVolume
 
-Step 2: Create mysql-1
-  - Create PVC: data-mysql-1
-  - Create Pod: mysql-1
-  - Wait for Running and Ready
+postgres-1:
+├── Pod: postgres-1
+└── PVC: data-postgres-1 (10Gi)
+    └── Bound to PersistentVolume
 
-Step 3: Create mysql-2
-  - Create PVC: data-mysql-2
-  - Create Pod: mysql-2
-  - Wait for Running and Ready
+postgres-2:
+├── Pod: postgres-2
+└── PVC: data-postgres-2 (10Gi)
+    └── Bound to PersistentVolume
 
-Result:
-  mysql-0 (PVC: data-mysql-0)
-  mysql-1 (PVC: data-mysql-1)
-  mysql-2 (PVC: data-mysql-2)
-```
+Each Pod has dedicated persistent volume!
 
-**Key point:** Sequential, ordered, one at a time
-
----
-
-### Scaling Up
-
-```bash
-kubectl scale statefulset mysql --replicas=5
-
-Process:
-  mysql-0, mysql-1, mysql-2 already running
-  
-  Create mysql-3:
-    - Create data-mysql-3
-    - Create Pod mysql-3
-    - Wait for Ready
-  
-  Create mysql-4:
-    - Create data-mysql-4
-    - Create Pod mysql-4
-    - Wait for Ready
+Pod restart:
+postgres-0 dies → recreated → Reattaches to data-postgres-0
+→ Data persists!
 ```
 
 ---
 
-### Scaling Down
+## 📝 StatefulSet YAML
 
-```bash
-kubectl scale statefulset mysql --replicas=2
-
-Process (reverse order):
-  Step 1: Delete mysql-2
-    - Terminate Pod mysql-2
-    - PVC data-mysql-2 REMAINS (not deleted!)
-  
-  Step 2: Delete mysql-1
-    - Terminate Pod mysql-1
-    - PVC data-mysql-1 remains
-  
-Result:
-  - Pods: mysql-0 (only)
-  - PVCs: data-mysql-0, data-mysql-1, data-mysql-2 (all remain)
-```
-
-**Important:** PVCs not deleted on scale down!
-
----
-
-### Pod Replacement
-
-```
-Scenario: mysql-1 crashes
-
-StatefulSet Controller:
-  1. Detect mysql-1 terminated
-  2. Create new Pod: mysql-1 (same name!)
-  3. Mount same PVC: data-mysql-1
-  4. Pod starts with previous data intact
-
-Result: Same identity, same data ✅
-```
-
----
-
-## 🌐 Network Identity
-
-### Headless Service
+### Complete Example
 
 ```yaml
+---
+# Headless Service (required!)
 apiVersion: v1
 kind: Service
 metadata:
-  name: mysql
+  name: redis
+  labels:
+    app: redis
 spec:
-  clusterIP: None  # ← Headless (no ClusterIP)
+  clusterIP: None  # Headless
   selector:
-    app: mysql
+    app: redis
   ports:
-  - port: 3306
-```
-
-### DNS Names
-
-```
-Each Pod gets stable DNS:
-  <pod-name>.<service-name>.<namespace>.svc.cluster.local
-
-Examples:
-  mysql-0.mysql.default.svc.cluster.local
-  mysql-1.mysql.default.svc.cluster.local
-  mysql-2.mysql.default.svc.cluster.local
-
-These DNS names NEVER change, even if Pod restarts!
-```
-
-### Use Case: Database Cluster
-
-```yaml
-MySQL Cluster:
-  mysql-0: Master (read/write)
-  mysql-1: Slave (read-only)
-  mysql-2: Slave (read-only)
-
-Application connects:
-  - Write: mysql-0.mysql:3306
-  - Read: mysql-1.mysql:3306 or mysql-2.mysql:3306
-
-Even if mysql-0 restarts → Same DNS → No config change needed
-```
+  - port: 6379
+    name: redis
 
 ---
-
-## 💾 Persistent Storage
-
-### VolumeClaimTemplates
-
-```yaml
-volumeClaimTemplates:
-- metadata:
-    name: data
-  spec:
-    accessModes: [ "ReadWriteOnce" ]
-    resources:
-      requests:
-        storage: 10Gi
-```
-
-**What happens:**
-```
-StatefulSet creates:
-  Pod mysql-0 → PVC data-mysql-0 → PV (10Gi disk)
-  Pod mysql-1 → PVC data-mysql-1 → PV (10Gi disk)
-  Pod mysql-2 → PVC data-mysql-2 → PV (10Gi disk)
-
-Each Pod has dedicated storage!
-```
-
-### PVC Lifecycle
-
-```
-1. Create StatefulSet → PVCs created
-2. Scale up → New PVCs created
-3. Scale down → PVCs REMAIN (not deleted)
-4. Delete StatefulSet → Pods deleted, PVCs REMAIN
-
-Why? Prevent data loss!
-
-Manual cleanup:
-  kubectl delete pvc data-mysql-0 data-mysql-1 data-mysql-2
-```
-
----
-
-## 🎯 Use Cases
-
-### 1. Databases
-
-**MySQL, PostgreSQL, MongoDB**
-
-```yaml
-StatefulSet: mysql-cluster
-  mysql-0: Primary (write)
-  mysql-1: Replica (read)
-  mysql-2: Replica (read)
-
-Benefits:
-  - Stable identity for master/slave setup
-  - Persistent data per instance
-  - Ordered startup (master first)
-```
-
----
-
-### 2. Distributed Systems
-
-**Kafka, ZooKeeper, Elasticsearch, Cassandra**
-
-```yaml
-StatefulSet: kafka-cluster
-  kafka-0: Broker ID 0
-  kafka-1: Broker ID 1
-  kafka-2: Broker ID 2
-
-Benefits:
-  - Stable broker IDs
-  - Persistent message logs
-  - Ordered cluster formation
-```
-
----
-
-### 3. Key-Value Stores
-
-**Redis Cluster, etcd**
-
-```yaml
-StatefulSet: redis-cluster
-  redis-0: Master
-  redis-1: Slave (replicates from redis-0)
-  redis-2: Slave
-
-Benefits:
-  - Stable master/slave relationships
-  - Persistent data
-```
-
----
-
-## ⚙️ StatefulSet Features
-
-### 1. Pod Management Policy
-
-```yaml
+# StatefulSet
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: redis
 spec:
-  podManagementPolicy: OrderedReady  # Default
-
-# OrderedReady: Sequential (0 → 1 → 2)
-# Parallel: All at once (like Deployment)
-```
-
-**When to use Parallel:**
-- Pods don't depend on each other
-- Fast startup needed
-- Example: Stateless workers with persistent storage
-
----
-
-### 2. Update Strategies
-
-#### RollingUpdate (Default)
-
-```yaml
-spec:
-  updateStrategy:
-    type: RollingUpdate
-    rollingUpdate:
-      partition: 0  # Update Pods >= partition
-```
-
-**Example:**
-```bash
-# Update image
-kubectl set image statefulset/mysql mysql=mysql:8.0
-
-Process (reverse order):
-  1. Update mysql-2 → Wait Ready
-  2. Update mysql-1 → Wait Ready
-  3. Update mysql-0 → Wait Ready
-```
-
-**Canary Deployment with partition:**
-```yaml
-partition: 2
-
-Result:
-  - Pods >= 2 updated (mysql-2)
-  - Pods < 2 not updated (mysql-0, mysql-1)
+  # Service name (must match Headless Service)
+  serviceName: redis
   
-Test mysql-2, if OK → Set partition: 0 to update all
+  # Number of replicas
+  replicas: 3
+  
+  # Selector
+  selector:
+    matchLabels:
+      app: redis
+  
+  # Pod template
+  template:
+    metadata:
+      labels:
+        app: redis
+    spec:
+      containers:
+      - name: redis
+        image: redis:7-alpine
+        ports:
+        - containerPort: 6379
+          name: redis
+        volumeMounts:
+        - name: data
+          mountPath: /data
+        command:
+        - redis-server
+        - "--appendonly"
+        - "yes"
+  
+  # Persistent volume claim template
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      storageClassName: standard  # Or your StorageClass
+      resources:
+        requests:
+          storage: 5Gi
 ```
 
 ---
 
-#### OnDelete
+## 🎮 Hands-On: Working với StatefulSets
 
-```yaml
-spec:
-  updateStrategy:
-    type: OnDelete
-```
-
-**Behavior:**
-```
-Change StatefulSet template → Nothing happens
-Delete Pod manually → New Pod created with new template
-
-Use case: Manual control over updates
-```
-
----
-
-## 🔧 StatefulSet Operations
-
-### Create
+### Create StatefulSet
 
 ```bash
+# Apply (creates Headless Service + StatefulSet)
 kubectl apply -f statefulset.yaml
 
-# Watch creation
-kubectl get pods -w
-# NAME      READY   STATUS
-# mysql-0   0/1     Pending
-# mysql-0   0/1     ContainerCreating
-# mysql-0   1/1     Running
-# mysql-1   0/1     Pending
-# ...
+# Watch Pods being created (ordered!)
+kubectl get pods -w -l app=redis
+
+# Output (sequential creation):
+# NAME      READY   STATUS              AGE
+# redis-0   0/1     ContainerCreating   2s
+# redis-0   1/1     Running             10s
+# redis-1   0/1     ContainerCreating   1s   ← Created after redis-0 Ready
+# redis-1   1/1     Running             8s
+# redis-2   0/1     ContainerCreating   1s   ← Created after redis-1 Ready
+# redis-2   1/1     Running             7s
+
+# Check StatefulSet
+kubectl get statefulset
+# or shorter
+kubectl get sts
+
+# Output:
+# NAME    READY   AGE
+# redis   3/3     1m
+
+# Check Pods
+kubectl get pods -l app=redis
+
+# Output (predictable names!):
+# NAME      READY   STATUS    RESTARTS   AGE
+# redis-0   1/1     Running   0          2m
+# redis-1   1/1     Running   0          2m
+# redis-2   1/1     Running   0          2m
+
+# Check PVCs (one per Pod!)
+kubectl get pvc
+
+# Output:
+# NAME           STATUS   VOLUME       CAPACITY   ACCESS MODES
+# data-redis-0   Bound    pvc-abc123   5Gi        RWO
+# data-redis-1   Bound    pvc-def456   5Gi        RWO
+# data-redis-2   Bound    pvc-ghi789   5Gi        RWO
 ```
 
-### Scale
+---
+
+### Test Stable Network Identity
 
 ```bash
-# Scale up
-kubectl scale statefulset mysql --replicas=5
+# Get Service
+kubectl get svc redis
 
-# Scale down
-kubectl scale statefulset mysql --replicas=1
+# Output:
+# NAME    TYPE        CLUSTER-IP   EXTERNAL-IP   PORT(S)
+# redis   ClusterIP   None         <none>        6379/TCP
+#                     ↑ Headless!
+
+# DNS resolution for each Pod
+kubectl run -it --rm debug --image=busybox --restart=Never -- nslookup redis-0.redis
+
+# Output:
+# Server:    10.96.0.10
+# Address:   10.96.0.10:53
+# 
+# Name:   redis-0.redis.default.svc.cluster.local
+# Address: 10.244.1.5
+
+# Test stable DNS
+kubectl exec redis-0 -- hostname -f
+
+# Output:
+# redis-0.redis.default.svc.cluster.local
+
+# Connect to specific Pod
+kubectl run -it --rm redis-client --image=redis --restart=Never -- redis-cli -h redis-0.redis
+
+# Inside redis-cli:
+127.0.0.1:6379> SET key1 "Hello from redis-0"
+127.0.0.1:6379> GET key1
+"Hello from redis-0"
 ```
 
-### Update
+---
+
+### Test Persistent Storage
+
+```bash
+# Write data to redis-0
+kubectl exec -it redis-0 -- redis-cli SET mykey "persistent-data"
+
+# Verify
+kubectl exec redis-0 -- redis-cli GET mykey
+# Output: "persistent-data"
+
+# Delete Pod (simulate crash)
+kubectl delete pod redis-0
+
+# Pod recreated automatically
+kubectl get pods -w
+# redis-0   0/1     ContainerCreating   2s
+# redis-0   1/1     Running             10s
+
+# Data still there! (from PVC)
+kubectl exec redis-0 -- redis-cli GET mykey
+# Output: "persistent-data"
+
+✓ Data persisted through Pod restart!
+```
+
+---
+
+### Scale StatefulSet
+
+**Scale Up:**
+
+```bash
+# Scale from 3 to 5
+kubectl scale statefulset redis --replicas=5
+
+# Watch (sequential creation!)
+kubectl get pods -w -l app=redis
+
+# Output:
+# redis-0   1/1     Running   0    10m
+# redis-1   1/1     Running   0    10m
+# redis-2   1/1     Running   0    10m
+# redis-3   0/1     ContainerCreating   2s  ← Created
+# redis-3   1/1     Running             10s
+# redis-4   0/1     ContainerCreating   1s  ← Created after redis-3 Ready
+# redis-4   1/1     Running             9s
+
+# New PVCs created
+kubectl get pvc
+# data-redis-0, data-redis-1, data-redis-2, data-redis-3, data-redis-4
+```
+
+**Scale Down:**
+
+```bash
+# Scale from 5 to 3
+kubectl scale statefulset redis --replicas=3
+
+# Watch (reverse order deletion!)
+kubectl get pods -w -l app=redis
+
+# Output:
+# redis-4   1/1     Terminating   0    2m  ← Deleted first (highest)
+# redis-4   0/1     Terminating   0    2m
+# redis-3   1/1     Terminating   0    2m  ← Deleted second
+# redis-3   0/1     Terminating   0    2m
+# redis-0   1/1     Running       0    12m ← Kept
+# redis-1   1/1     Running       0    12m ← Kept
+# redis-2   1/1     Running       0    12m ← Kept
+
+# PVCs NOT deleted! (data preserved)
+kubectl get pvc
+# data-redis-0, data-redis-1, data-redis-2, data-redis-3, data-redis-4
+#                                          ↑ PVCs for redis-3, redis-4 still exist!
+
+# Scale back up to 5
+kubectl scale statefulset redis --replicas=5
+
+# redis-3 và redis-4 recreated và reattach to existing PVCs!
+# → Data from before scale-down is still there!
+```
+
+---
+
+### Update StatefulSet
+
+**Rolling Update (default):**
+
+```yaml
+spec:
+  updateStrategy:
+    type: RollingUpdate  # Default
+```
 
 ```bash
 # Update image
-kubectl set image statefulset/mysql mysql=mysql:8.0
+kubectl set image statefulset/redis redis=redis:7.2-alpine
 
-# Check rollout
-kubectl rollout status statefulset/mysql
+# Pods updated in REVERSE order (2 → 1 → 0)
+kubectl get pods -w -l app=redis
+
+# Output:
+# redis-2   1/1     Terminating         0    5m  ← Updated first
+# redis-2   0/1     ContainerCreating   0    1s
+# redis-2   1/1     Running             0    10s
+# redis-1   1/1     Terminating         0    5m  ← Updated second
+# redis-1   0/1     ContainerCreating   0    1s
+# redis-1   1/1     Running             0    9s
+# redis-0   1/1     Terminating         0    5m  ← Updated last
+# redis-0   0/1     ContainerCreating   0    1s
+# redis-0   1/1     Running             0    10s
+
+# Order: Highest ordinal first (2 → 1 → 0)
+# Why? Safer for databases (replicas updated before primary)
 ```
 
-### Delete
+**OnDelete Update:**
+
+```yaml
+spec:
+  updateStrategy:
+    type: OnDelete  # Manual control
+```
 
 ```bash
-# Delete StatefulSet (keep Pods)
-kubectl delete statefulset mysql --cascade=orphan
+# Update StatefulSet
+kubectl set image statefulset/redis redis=redis:7.2-alpine
 
-# Delete StatefulSet and Pods (PVCs remain!)
-kubectl delete statefulset mysql
+# Pods NOT updated automatically!
+kubectl get pods -l app=redis -o jsonpath='{.items[*].spec.containers[*].image}'
+# Output: redis:7-alpine redis:7-alpine redis:7-alpine (still old image)
 
-# Delete everything including PVCs
-kubectl delete statefulset mysql
-kubectl delete pvc -l app=mysql
+# Manually delete Pods to trigger update
+kubectl delete pod redis-2
+# redis-2 recreated with new image
+
+kubectl delete pod redis-1
+# redis-1 recreated with new image
+
+kubectl delete pod redis-0
+# redis-0 recreated with new image
+
+# Now all updated to redis:7.2-alpine
 ```
 
 ---
 
-## 💡 Best Practices
+### Delete StatefulSet
 
-### ✅ DO
+**Option 1: Delete StatefulSet + Pods**
 
-1. **Headless Service required**
-```yaml
-clusterIP: None
-```
-
-2. **Readiness probes essential**
-```yaml
-readinessProbe:
-  exec:
-    command:
-    - mysql
-    - -h
-    - 127.0.0.1
-    - -e
-    - "SELECT 1"
-  initialDelaySeconds: 30
-  periodSeconds: 10
-```
-
-3. **Backup PVCs regularly**
 ```bash
-# PVCs persist even after deletion
-# Regular backups essential
+# Default: Deletes StatefulSet và Pods
+kubectl delete statefulset redis
+
+# Pods deleted in reverse order (2 → 1 → 0)
+kubectl get pods -w -l app=redis
+
+# PVCs NOT deleted (must delete manually)
+kubectl get pvc
+# data-redis-0, data-redis-1, data-redis-2 still exist!
+
+# Delete PVCs if needed
+kubectl delete pvc data-redis-0 data-redis-1 data-redis-2
 ```
 
-4. **Resource limits**
-```yaml
-resources:
-  requests:
-    cpu: 1
-    memory: 2Gi
-  limits:
-    cpu: 2
-    memory: 4Gi
+**Option 2: Delete StatefulSet, keep Pods**
+
+```bash
+# Cascade=orphan: Delete StatefulSet, keep Pods
+kubectl delete statefulset redis --cascade=orphan
+
+# StatefulSet deleted
+kubectl get statefulset
+# No resources found
+
+# Pods still running (orphaned)
+kubectl get pods -l app=redis
+# redis-0, redis-1, redis-2 still Running
+
+# Pods now unmanaged (must delete manually)
 ```
 
-5. **Ordered updates for databases**
-```yaml
-podManagementPolicy: OrderedReady
+---
+
+## 🔗 StatefulSet vs Deployment
+
+### Comparison Table
+
+| Feature | Deployment | StatefulSet |
+|---------|------------|-------------|
+| **Pod names** | Random (hash suffix) | Predictable (ordinal) |
+| **Network identity** | Random IPs, changes on restart | Stable DNS per Pod |
+| **Storage** | Shared or ephemeral | Persistent per Pod |
+| **Deployment order** | Parallel (simultaneous) | Sequential (ordered) |
+| **Scaling order** | Random | Ordered (0→1→2 up, 2→1→0 down) |
+| **Update order** | Random | Reverse order (2→1→0) |
+| **Use cases** | Stateless apps | Stateful apps |
+| **Examples** | Web servers, APIs | Databases, caches |
+
+---
+
+## 🎯 When to Use StatefulSet?
+
+### Use StatefulSet For:
+
+```
+✓ Databases (PostgreSQL, MySQL, MongoDB)
+✓ Distributed caches (Redis, Memcached)
+✓ Message queues (Kafka, RabbitMQ)
+✓ Distributed coordination (ZooKeeper, etcd)
+✓ Applications needing:
+  - Stable network identity
+  - Persistent storage per instance
+  - Ordered deployment/updates
+  - Peer discovery (cluster formation)
+```
+
+### Use Deployment For:
+
+```
+✓ Stateless web applications
+✓ REST APIs
+✓ Microservices (stateless)
+✓ Batch processing workers
+✓ Applications where:
+  - Pods are interchangeable
+  - No persistent state needed
+  - Fast scaling required
+  - Random deployment OK
 ```
 
 ---
 
-### ❌ DON'T
+## 🐛 Troubleshooting StatefulSets
 
-1. **No headless Service** → DNS won't work
-2. **No readiness probe** → Sequential startup broken
-3. **Delete PVCs carelessly** → Data loss!
-4. **Use for stateless apps** → Use Deployment instead
-5. **Ignore backup** → Data loss on corruption
+### Issue 1: Pod Stuck in Pending
+
+```bash
+$ kubectl get pods
+NAME      READY   STATUS    RESTARTS   AGE
+redis-0   0/1     Pending   0          5m
+
+# Pod 0 stuck, Pods 1,2 not created yet
+
+# Describe Pod
+$ kubectl describe pod redis-0
+
+# Events might show:
+# Warning  FailedScheduling  0/3 nodes are available: persistentvolumeclaim "data-redis-0" not found
+
+# Cause: No PVC or PV available
+
+# Fix:
+# 1. Check PVC exists
+kubectl get pvc data-redis-0
+
+# 2. Check PV available
+kubectl get pv
+
+# 3. Create StorageClass if missing
+# 4. Create PV manually if using static provisioning
+```
 
 ---
 
-## 🎓 Key Takeaways
+### Issue 2: Pods Created Out of Order
 
-1. **StatefulSet:** For stateful apps (databases, etc.)
-2. **Stable identity:** Pod names predictable (mysql-0, mysql-1)
-3. **Ordered:** Sequential creation/deletion
-4. **Persistent storage:** Each Pod has own PVC
-5. **Headless Service:** Stable DNS names
-6. **PVC lifecycle:** PVCs survive Pod deletion
-7. **Use cases:** Databases, distributed systems, key-value stores
+```bash
+$ kubectl get pods -l app=redis
+NAME      READY   STATUS    RESTARTS   AGE
+redis-0   1/1     Running   0          2m
+redis-1   1/1     Running   0          2m
+redis-2   0/1     Pending   0          2m
+
+# redis-1 và redis-2 shouldn't be created until redis-0 Ready!
+
+# Cause: podManagementPolicy: Parallel
+
+# Check StatefulSet
+$ kubectl get statefulset redis -o yaml | grep podManagementPolicy
+podManagementPolicy: Parallel  ← Found it!
+
+# Fix: Change to OrderedReady (default)
+kubectl patch statefulset redis -p '{"spec":{"podManagementPolicy":"OrderedReady"}}'
+```
 
 ---
 
-## ❓ Câu Hỏi Tự Kiểm Tra
+### Issue 3: Data Lost After Scale Down/Up
 
-1. StatefulSet khác gì với Deployment?
-2. Headless Service là gì và tại sao cần?
-3. PVC có bị xóa khi scale down không?
-4. Thứ tự tạo/xóa Pod trong StatefulSet?
-5. Khi nào dùng StatefulSet thay vì Deployment?
-6. DNS name của Pod trong StatefulSet như thế nào?
+```bash
+# Scale down
+kubectl scale statefulset redis --replicas=1
+
+# redis-2, redis-1 deleted
+# data-redis-1, data-redis-2 PVCs still exist ✓
+
+# BUT: PVCs deleted manually (mistake!)
+kubectl delete pvc data-redis-1 data-redis-2
+
+# Scale back up
+kubectl scale statefulset redis --replicas=3
+
+# redis-1, redis-2 recreated with NEW PVCs
+# → Data from before is LOST!
+
+# Prevention:
+# 1. Don't delete PVCs manually unless intentional
+# 2. Backup data before scaling down
+# 3. Use proper backup solutions
+```
 
 ---
 
-[⬅️ 4.2. Deployment](./02-deployment.md) | [➡️ 4.4. DaemonSet](./04-daemonset.md) | [🏠 Mục Lục Chính](../README.md)
+## 🎓 Kiểm Tra Hiểu Biết
 
+**1. StatefulSet vs Deployment - khi nào dùng gì?**
+<details>
+<summary>Xem đáp án</summary>
+
+**StatefulSet:**
+- Stateful applications
+- Need stable identity
+- Persistent storage per Pod
+- Ordered deployment
+- Examples: Databases, caches
+
+**Deployment:**
+- Stateless applications
+- Pods interchangeable
+- No persistent state
+- Fast scaling
+- Examples: Web servers, APIs
+
+**Rule:** If in doubt → Try Deployment first. Only use StatefulSet if you NEED stateful features.
+</details>
+
+**2. Tại sao cần Headless Service?**
+<details>
+<summary>Xem đáp án</summary>
+
+Headless Service (clusterIP: None) provides:
+
+1. **Stable DNS per Pod:**
+   - redis-0.redis.default.svc.cluster.local
+   - redis-1.redis.default.svc.cluster.local
+
+2. **Direct Pod access:**
+   - No load balancing
+   - Connect to specific Pod
+
+3. **Peer discovery:**
+   - Pods can find each other
+   - Cluster formation (e.g., Redis Cluster)
+
+Without Headless Service: No stable DNS per Pod!
+</details>
+
+**3. Scale down StatefulSet 5→3, PVCs bị xóa không?**
+<details>
+<summary>Xem đáp án</summary>
+
+**NO! PVCs NOT deleted automatically.**
+
+```
+Before scale down:
+- Pods: redis-0, redis-1, redis-2, redis-3, redis-4
+- PVCs: data-redis-0, ..., data-redis-4
+
+After scale down to 3:
+- Pods: redis-0, redis-1, redis-2
+- PVCs: data-redis-0, data-redis-1, data-redis-2, data-redis-3, data-redis-4
+         ↑ All PVCs still exist!
+
+Scale back up to 5:
+- redis-3, redis-4 reattach to existing PVCs
+- Data preserved!
+
+Must manually delete PVCs if want to remove data.
+```
+</details>
+
+---
+
+## 💪 Bài Tập Thực Hành
+
+### Bài 1: Deploy Redis StatefulSet
+
+(Use YAML from earlier examples)
+
+```bash
+# 1. Apply
+kubectl apply -f redis-statefulset.yaml
+
+# 2. Watch ordered creation
+kubectl get pods -w -l app=redis
+
+# 3. Test stable DNS
+kubectl run -it --rm debug --image=busybox --restart=Never -- nslookup redis-0.redis
+
+# 4. Write data
+kubectl exec redis-0 -- redis-cli SET test-key "hello"
+
+# 5. Delete Pod
+kubectl delete pod redis-0
+
+# 6. Verify data persists
+kubectl exec redis-0 -- redis-cli GET test-key
+# Should return: "hello"
+
+# 7. Scale up
+kubectl scale sts redis --replicas=5
+
+# 8. Scale down
+kubectl scale sts redis --replicas=2
+
+# 9. Check PVCs (should have 5, even though only 2 Pods)
+kubectl get pvc
+
+# 10. Cleanup
+kubectl delete sts redis
+kubectl delete svc redis
+kubectl delete pvc --all
+```
+
+---
+
+## 🎯 Key Takeaways
+
+1. **StatefulSet = Stateful Apps**
+   - Stable identity
+   - Persistent storage
+   - Ordered operations
+
+2. **Key Features**
+   - Predictable Pod names (ordinal)
+   - Stable DNS per Pod
+   - Persistent storage per Pod
+   - Sequential deployment/scaling
+
+3. **Headless Service Required**
+   - clusterIP: None
+   - Enables stable DNS
+
+4. **PVCs Not Auto-Deleted**
+   - Scale down → PVCs kept
+   - Data preserved
+   - Must delete manually
+
+5. **When to Use**
+   - Databases: YES
+   - Caches: YES
+   - Web APIs: NO (use Deployment)
+
+---
+
+## 🚀 Tiếp Theo
+
+StatefulSets nắm rồi! Next: DaemonSets - run on every Node!
+
+**Next:** [4.4. DaemonSet →](./04-daemonset.md)
+
+---
+
+[⬅️ 4.2. Deployment](./02-deployment.md) | [🏠 Mục Lục](../README.md) | [📂 Phần 4: Workloads](./README.md) | [➡️ 4.4. DaemonSet](./04-daemonset.md)

@@ -1,101 +1,269 @@
-# Phần 10: Observability Fundamentals trong K8s
+# 📘 Phần 10: Observability Fundamentals
 
-> Kiến thức K8s cần thiết để triển khai giải pháp Observability (Datadog, Dynatrace, Prometheus...)
+> K8s foundations cho monitoring & observability
 
 ---
 
 ## 🎯 Mục Tiêu
 
-Hiểu các K8s concepts liên quan đến Observability:
-- ✅ Metrics collection architecture
-- ✅ Logging patterns trong K8s
-- ✅ Labels & Annotations cho filtering
-- ✅ Service discovery cho monitoring
-- ✅ RBAC permissions cho monitoring tools
-- ✅ Deploy monitoring agents (DaemonSet pattern)
+✅ **Metrics architecture** (Metrics Server, cAdvisor)  
+✅ **Logging architecture** và patterns  
+✅ **Labels & Annotations** cho observability  
+✅ **Service Discovery** cho monitoring  
+✅ **Deploy monitoring agents** (Datadog, Dynatrace)  
+✅ **Events & Audit Logs**  
 
 ---
 
-## 📚 Nội Dung
+## 📚 Core Concepts
 
-- [10.1. Metrics Architecture](./01-metrics-architecture.md) - Metrics Server, cAdvisor, Custom metrics
-- [10.2. Logging Architecture](./02-logging-architecture.md) - Stdout/stderr, log aggregation
-- [10.3. Labels & Annotations for Observability](./03-labels-annotations-observability.md) - Tagging strategy
-- [10.4. Service Discovery & Monitoring](./04-service-discovery-monitoring.md) - Endpoints, DNS
-- [10.5. Deploying Monitoring Agents](./05-deploying-monitoring-agents.md) - DaemonSet, RBAC, ServiceAccounts
-- [10.6. Events & Audit Logs](./06-events-audit-logs.md) - K8s events, audit trail
+### Metrics trong K8s
 
----
+**Metrics Server:**
+- Collects resource metrics (CPU, RAM)
+- Powers `kubectl top`
+- Required for HPA
 
-## 🎓 Tại Sao Cần Học Phần Này?
+**cAdvisor:**
+- Built into kubelet
+- Container-level metrics
+- Automatic collection
 
-### Khi triển khai Datadog/Dynatrace, bạn cần hiểu:
-
-**1. Metrics Collection**
-```
-Datadog Agent cần:
-  → Biết Pods nào đang chạy (API Server)
-  → Lấy metrics từ kubelet (cAdvisor)
-  → Đọc custom metrics (Metrics API)
-  → Access resource usage (requests/limits)
-```
-
-**2. Log Aggregation**
-```
-Log collector cần:
-  → Đọc container logs (stdout/stderr)
-  → Access log files trên Node (hostPath)
-  → Parse và enrich với K8s metadata
-  → Forward đến backend
-```
-
-**3. Auto-discovery**
-```
-Monitoring tool cần:
-  → Discover Services (API Server watch)
-  → Detect new Pods (Events)
-  → Tag với labels (metadata)
-  → Update targets dynamically
-```
-
-**4. Permissions**
-```
-Agent cần RBAC để:
-  → List/Watch Pods, Services, Nodes
-  → Read metrics từ Metrics API
-  → Access logs
-  → Create Events (optional)
-```
+**Custom Metrics:**
+- Application metrics (requests/sec, latency)
+- Via Prometheus or similar
+- Powers advanced HPA
 
 ---
 
-## 🔗 Liên Quan Đến Các Phần Khác
+### Logging Architecture
 
-- **Phần 2 (Architecture):** API Server, kubelet, kube-proxy
-- **Phần 3 (Core Concepts):** Labels, Annotations
-- **Phần 4 (Workloads):** DaemonSet (deploy agents)
-- **Phần 5 (Networking):** Service discovery
-- **Phần 8 (HA):** Metrics-based autoscaling (HPA)
+**Container Logs:**
+```bash
+kubectl logs <pod-name>
+kubectl logs <pod-name> -c <container>
+kubectl logs <pod-name> --previous
+```
 
----
-
-## ⏱️ Thời Gian Học
-
-**Ước tính:** 4-5 giờ
-
-Quan trọng cho:
-- DevOps Engineers
-- SRE (Site Reliability Engineers)
-- Platform Engineers
-- Ai triển khai monitoring/observability
+**Log Collection:**
+- DaemonSet pattern (Fluentd, Filebeat)
+- Collect from all Nodes
+- Ship to central storage (Loki, Elasticsearch)
 
 ---
 
-## 🚀 Bắt Đầu
+### Labels for Observability
 
-👉 [10.1. Metrics Architecture trong K8s](./01-metrics-architecture.md)
+```yaml
+metadata:
+  labels:
+    # Standard labels
+    app.kubernetes.io/name: webapp
+    app.kubernetes.io/instance: webapp-prod
+    app.kubernetes.io/version: "1.2.0"
+    app.kubernetes.io/component: backend
+    
+    # Custom labels
+    team: platform
+    environment: production
+    
+  annotations:
+    # Prometheus scraping
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "9090"
+    prometheus.io/path: "/metrics"
+```
 
 ---
 
-[⬅️ Phần 9: Next Steps](../09-next-steps/README.md) | [🏠 Mục Lục Chính](../README.md)
+## 🔍 Service Discovery
 
+**K8s Service Discovery for Monitoring:**
+
+```yaml
+# Prometheus ServiceMonitor
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: webapp-monitor
+spec:
+  selector:
+    matchLabels:
+      app: webapp
+  endpoints:
+  - port: metrics
+    interval: 30s
+```
+
+---
+
+## 🎮 Deploy Monitoring Agents
+
+### Datadog Agent
+
+```yaml
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: datadog-agent
+spec:
+  selector:
+    matchLabels:
+      app: datadog-agent
+  template:
+    metadata:
+      labels:
+        app: datadog-agent
+    spec:
+      containers:
+      - name: agent
+        image: datadog/agent:latest
+        env:
+        - name: DD_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: datadog-secret
+              key: api-key
+        - name: DD_SITE
+          value: "datadoghq.com"
+        - name: DD_LOGS_ENABLED
+          value: "true"
+        - name: DD_APM_ENABLED
+          value: "true"
+```
+
+### Dynatrace OneAgent
+
+```yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: dynatrace
+---
+apiVersion: dynatrace.com/v1beta1
+kind: DynaKube
+metadata:
+  name: dynakube
+  namespace: dynatrace
+spec:
+  apiUrl: https://xxxxx.live.dynatrace.com/api
+  tokens: dynatrace-tokens
+  oneAgent:
+    classicFullStack:
+      tolerations:
+      - effect: NoSchedule
+        key: node-role.kubernetes.io/master
+```
+
+---
+
+## 📊 Events & Audit Logs
+
+**K8s Events:**
+```bash
+# View events
+kubectl get events
+kubectl get events --sort-by='.lastTimestamp'
+kubectl get events -n <namespace>
+
+# Watch events
+kubectl get events --watch
+
+# Describe resource includes events
+kubectl describe pod <pod-name>
+```
+
+**Audit Logs:**
+- kube-apiserver logs all API requests
+- Configure audit policy
+- Ship to SIEM (Splunk, ELK)
+
+---
+
+## 🎯 Observability Stack
+
+**Complete stack example:**
+
+```
+┌─────────────────────────────────────┐
+│    APPLICATIONS (with metrics)     │
+└──────────────┬──────────────────────┘
+               │
+┌──────────────┴──────────────────────┐
+│         COLLECTION LAYER            │
+│  ┌────────────┐    ┌─────────────┐ │
+│  │ Prometheus │    │  Fluentd    │ │
+│  │ (Metrics)  │    │  (Logs)     │ │
+│  └────────────┘    └─────────────┘ │
+└──────────────┬──────────────────────┘
+               │
+┌──────────────┴──────────────────────┐
+│         STORAGE LAYER               │
+│  ┌────────────┐    ┌─────────────┐ │
+│  │ Prometheus │    │    Loki     │ │
+│  │   TSDB     │    │             │ │
+│  └────────────┘    └─────────────┘ │
+└──────────────┬──────────────────────┘
+               │
+┌──────────────┴──────────────────────┐
+│      VISUALIZATION LAYER            │
+│         ┌──────────┐                │
+│         │ Grafana  │                │
+│         └──────────┘                │
+└─────────────────────────────────────┘
+```
+
+---
+
+## 💡 Best Practices
+
+```yaml
+1. LABELS: Consistent labeling strategy
+   ✓ app.kubernetes.io/* labels
+   ✓ Environment, team, version
+
+2. METRICS: Expose application metrics
+   ✓ /metrics endpoint
+   ✓ Prometheus format
+   ✓ Business metrics
+
+3. LOGS: Structured logging
+   ✓ JSON format
+   ✓ Include context (trace IDs)
+   ✓ Log levels (ERROR, WARN, INFO)
+
+4. TRACES: Distributed tracing
+   ✓ OpenTelemetry
+   ✓ Trace IDs across services
+   ✓ Jaeger or similar
+
+5. DASHBOARDS: Actionable dashboards
+   ✓ Golden signals (latency, traffic, errors, saturation)
+   ✓ SLIs/SLOs
+   ✓ Alerts on actionable conditions
+```
+
+---
+
+## 🚀 Quick Setup
+
+```bash
+# Install Metrics Server
+kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
+
+# Test
+kubectl top nodes
+kubectl top pods
+
+# Install Prometheus (Helm)
+helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+helm install prometheus prometheus-community/kube-prometheus-stack
+
+# Access Grafana
+kubectl port-forward svc/prometheus-grafana 3000:80
+# Open http://localhost:3000 (admin/prom-operator)
+```
+
+---
+
+[⬅️ Phần 9](../09-next-steps/README.md) | [🏠 Mục Lục](../README.md) | [➡️ Phần 11](../11-production-deployment/README.md)

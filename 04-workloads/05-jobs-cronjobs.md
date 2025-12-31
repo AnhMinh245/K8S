@@ -1,487 +1,887 @@
-# 4.5. Job & CronJob - Batch Processing
+# 4.5. Jobs & CronJobs - Batch Workloads
 
-> Job và CronJob cho các tác vụ chạy một lần hoặc theo lịch
-
----
-
-## 🎯 Job Là Gì?
-
-**Job** = Controller chạy Pod đến khi **hoàn thành task** rồi dừng
-
-```
-Normal Deployment:
-  Pod fails → Restart forever
-  Goal: Keep running
-
-Job:
-  Pod completes (exit code 0) → Job done ✅
-  Pod fails → Retry (up to limit)
-  Goal: Complete task successfully
-```
+> Run-to-completion tasks và scheduled jobs
 
 ---
 
-## 🏢 Ví Dụ Thực Tế
+## 🎯 Mục Tiêu Học
 
-**Deployment = Nhân viên full-time**
+Sau khi học xong phần này, bạn sẽ:
+- ✅ Hiểu **Jobs và CronJobs** là gì
+- ✅ Biết **khi nào dùng** Jobs vs long-running services
+- ✅ Tạo **one-time tasks** với Jobs
+- ✅ Schedule **recurring tasks** với CronJobs
+- ✅ Handle **job failures và retries**
+- ✅ **Parallel jobs** và batch processing
+
+---
+
+## 📦 Job Là Gì?
+
+### Định Nghĩa
+
+**Job** = Controller creates Pods để chạy task đến completion, sau đó terminates.
+
+### Giải Thích Bằng Ví Dụ
+
+**Long-running Services vs Jobs:**
+
 ```
-Làm việc liên tục:
-  • 8 giờ/ngày
-  • 5 ngày/tuần
-  • Nghỉ → Tuyển người thay
-  → Long-running
+🏢 CÔNG TY
+
+DEPLOYMENT = Nhân viên full-time:
+├── Làm việc 24/7 (always running)
+├── Web server, API server
+├── Restart if crashed
+└── Never "completes" - always running
+
+Use cases: Web apps, APIs, databases
+
+JOB = Nhân viên project-based:
+├── Làm task cụ thể
+├── Hoàn thành → Done, về nhà
+├── Database migration, backup
+├── Report generation
+└── "Completes" when done
+
+Use cases: Batch processing, one-time tasks
+
+CRONJOB = Scheduled tasks:
+├── Mỗi ngày 2AM chạy backup
+├── Mỗi tuần gửi báo cáo
+├── Cron schedule: "0 2 * * *"
+└── Tự động tạo Job theo schedule
+
+Use cases: Backups, cleanup, reports
 ```
 
-**Job = Nhân viên hợp đồng ngắn hạn**
+---
+
+## 🤔 TẠI SAO Cần Jobs?
+
+### Problem với Deployment cho Tasks
+
+```yaml
+# Using Deployment cho one-time task
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: database-migration
+spec:
+  replicas: 1
+  template:
+    spec:
+      containers:
+      - name: migrate
+        image: migrations:v1
+        command: ["./migrate"]
+
+# Problems:
+❌ Task completes (exit code 0) → Pod restarts!
+   (Deployment thinks it crashed)
+   → Infinite restarts
+   → Database migrated multiple times! (BAD!)
+
+❌ No completion tracking
+   → Can't tell if task succeeded
+
+❌ Can't set retry limit
+   → Keeps retrying forever if fails
+
+❌ restartPolicy: Never doesn't work với Deployment
+   → Deployment requires restartPolicy: Always
 ```
-Nhiệm vụ cụ thể:
-  • Import 1000 records vào database
-  • Xong → Về
-  • Thất bại → Thử lại
-  → Run-to-completion
+
+### Solution: Job
+
+```yaml
+# Using Job
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: database-migration
+spec:
+  template:
+    spec:
+      restartPolicy: Never  # Don't restart on completion
+      containers:
+      - name: migrate
+        image: migrations:v1
+        command: ["./migrate"]
+
+# Benefits:
+✓ Task completes (exit 0) → Job done! No restart
+✓ Completion tracked (kubectl get jobs shows "1/1")
+✓ Retry limit (backoffLimit: 3)
+✓ Can run multiple Pods (parallelism)
+✓ History preserved (completed Pods kept)
 ```
 
 ---
 
 ## 📝 Job YAML
 
+### Basic Job
+
 ```yaml
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: data-import
+  name: backup-job
 spec:
-  completions: 1          # Number of successful completions needed
-  parallelism: 1          # Max Pods running in parallel
-  backoffLimit: 3         # Max retries on failure
+  # Template cho Pod
   template:
     spec:
+      # MUST be Never or OnFailure (not Always!)
+      restartPolicy: Never
       containers:
-      - name: importer
-        image: myapp/data-importer:v1
+      - name: backup
+        image: backup-tool:v1
         command:
         - /bin/sh
         - -c
         - |
-          echo "Importing data..."
-          python import_data.py
-          echo "Import complete!"
-      restartPolicy: Never  # Never or OnFailure (not Always!)
+          echo "Starting backup..."
+          pg_dump dbname > /backup/dump.sql
+          echo "Backup complete!"
 ```
 
----
-
-## 🔄 Job Lifecycle
-
-### Successful Job
-
-```
-1. Job created
-   kubectl apply -f job.yaml
-
-2. Job Controller creates Pod
-
-3. Pod runs → Task completes → Exit 0
-
-4. Job status: Completed (1/1)
-
-5. Pod status: Completed (not restarted)
-
-Result: Job done ✅
-```
-
-### Failed Job (with retries)
-
-```
-1. Job created (backoffLimit: 3)
-
-2. Pod runs → Task fails → Exit 1
-
-3. Pod status: Error
-
-4. Job Controller: Retry (1/3)
-   Creates new Pod
-
-5. New Pod fails again → Retry (2/3)
-
-6. Fails third time → Retry (3/3)
-
-7. Job status: Failed (exceeded backoffLimit)
-
-Result: Job failed after 3 attempts ❌
-```
-
----
-
-## ⚙️ Job Configurations
-
-### 1. Completions
+### Job với Parameters
 
 ```yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: data-processor
 spec:
-  completions: 5  # Need 5 successful completions
-  parallelism: 2  # Run 2 Pods at a time
-```
-
-**Execution:**
-```
-Start: Pod 1, Pod 2 (parallelism=2)
-Pod 1 completes → Start Pod 3
-Pod 2 completes → Start Pod 4
-Pod 3 completes → Start Pod 5
-Pod 4 completes → Done (4/5)
-Pod 5 completes → Done (5/5) ✅
-```
-
----
-
-### 2. Parallelism
-
-```yaml
-# Sequential
-spec:
-  completions: 10
-  parallelism: 1  # One at a time
+  # Parallelism: Số Pods chạy đồng thời
+  parallelism: 3
   
-# Parallel
-spec:
+  # Completions: Tổng số lần cần complete
   completions: 10
-  parallelism: 5  # 5 Pods at once (faster)
-```
-
-**Use case:**
-```
-Process 1000 files:
-  Sequential (parallelism=1): 1000 minutes
-  Parallel (parallelism=10): ~100 minutes
-```
-
----
-
-### 3. Backoff Limit
-
-```yaml
-spec:
-  backoffLimit: 6  # Retry up to 6 times (default: 6)
-```
-
-**Backoff delay:**
-```
-Retry 1: Immediate
-Retry 2: 10 seconds
-Retry 3: 20 seconds
-Retry 4: 40 seconds
-...
-Max: 6 minutes
-```
-
----
-
-### 4. Active Deadline
-
-```yaml
-spec:
-  activeDeadlineSeconds: 3600  # Job must complete in 1 hour
-```
-
-**Behavior:**
-```
-Job starts → 1 hour timer
-After 1 hour → Job terminated (even if not done)
-Status: Failed (DeadlineExceeded)
-
-Use case: Prevent infinite hanging
-```
-
----
-
-### 5. Restart Policy
-
-```yaml
-spec:
+  
+  # Backoff limit: Max retries khi fail
+  backoffLimit: 4
+  
+  # Timeout: Max thời gian Job chạy
+  activeDeadlineSeconds: 600  # 10 minutes
+  
   template:
     spec:
-      restartPolicy: Never  # or OnFailure
-
-# Never: Failed Pod → Job creates new Pod
-# OnFailure: Failed container → Restart in same Pod
-```
-
----
-
-## 🎯 Job Use Cases
-
-### 1. Data Import/Export
-
-```yaml
-apiVersion: batch/v1
-kind: Job
-metadata:
-  name: db-import
-spec:
-  template:
-    spec:
-      containers:
-      - name: importer
-        image: postgres:13
-        command:
-        - psql
-        - -h
-        - database-host
-        - -U
-        - user
-        - -f
-        - /scripts/import.sql
       restartPolicy: Never
-```
-
----
-
-### 2. Database Migration
-
-```yaml
-apiVersion: batch/v1
-kind: Job
-metadata:
-  name: db-migration
-spec:
-  template:
-    spec:
-      containers:
-      - name: migrate
-        image: myapp:v2.0
-        command:
-        - python
-        - manage.py
-        - migrate
-      restartPolicy: OnFailure
-```
-
----
-
-### 3. Batch Processing
-
-```yaml
-apiVersion: batch/v1
-kind: Job
-metadata:
-  name: image-processing
-spec:
-  completions: 100    # Process 100 images
-  parallelism: 10     # 10 workers
-  template:
-    spec:
       containers:
       - name: processor
-        image: myapp/image-processor
-        command:
-        - /process-batch.sh
-      restartPolicy: Never
+        image: data-processor:v1
+        command: ["./process"]
 ```
 
 ---
 
-### 4. Backup
+## 🎮 Hands-On: Working với Jobs
+
+### Create Simple Job
+
+```yaml
+# simple-job.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: hello-job
+spec:
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: hello
+        image: busybox
+        command: ['sh', '-c', 'echo "Hello from Job!"; sleep 10; echo "Done!"']
+```
+
+```bash
+# Create Job
+kubectl apply -f simple-job.yaml
+
+# Watch Job
+kubectl get jobs -w
+
+# Output:
+# NAME        COMPLETIONS   DURATION   AGE
+# hello-job   0/1           2s         2s
+# hello-job   1/1           12s        12s  ← Completed!
+
+# Check Pods
+kubectl get pods -l job-name=hello-job
+
+# Output:
+# NAME              READY   STATUS      RESTARTS   AGE
+# hello-job-abc12   0/1     Completed   0          30s
+
+# Status = Completed (not Running!)
+
+# Check logs
+kubectl logs hello-job-abc12
+
+# Output:
+# Hello from Job!
+# Done!
+```
+
+---
+
+### Job với Failure và Retry
+
+```yaml
+# failing-job.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: failing-job
+spec:
+  backoffLimit: 3  # Retry max 3 times
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: failer
+        image: busybox
+        command: ['sh', '-c', 'echo "Attempting..."; exit 1']  # Always fails!
+```
+
+```bash
+# Create Job
+kubectl apply -f failing-job.yaml
+
+# Watch Pods
+kubectl get pods -w -l job-name=failing-job
+
+# Output:
+# NAME                 READY   STATUS   RESTARTS   AGE
+# failing-job-abc12    0/1     Error    0          5s
+# failing-job-def34    0/1     Error    0          10s
+# failing-job-ghi56    0/1     Error    0          20s
+# failing-job-jkl78    0/1     Error    0          40s
+
+# 4 Pods created (1 initial + 3 retries), all failed
+
+# Check Job status
+kubectl get jobs
+
+# Output:
+# NAME           COMPLETIONS   DURATION   AGE
+# failing-job    0/1           80s        80s
+
+# Job never completes (all retries failed)
+
+# Describe Job
+kubectl describe job failing-job
+
+# Events:
+# Warning  BackoffLimitExceeded  Job has reached the specified backoff limit
+```
+
+---
+
+### Parallel Jobs
+
+**Non-Parallel:** One Pod runs to completion
+
+**Parallel với fixed completions:**
 
 ```yaml
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: backup
+  name: parallel-job
+spec:
+  completions: 10      # Need 10 successful completions
+  parallelism: 3       # Run 3 Pods at a time
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: worker
+        image: busybox
+        command: ['sh', '-c', 'echo "Processing..."; sleep 5; echo "Done!"']
+```
+
+```bash
+# Create Job
+kubectl apply -f parallel-job.yaml
+
+# Watch Pods (3 at a time!)
+kubectl get pods -w -l job-name=parallel-job
+
+# Output:
+# NAME                 READY   STATUS    AGE
+# parallel-job-abc12   1/1     Running   2s   ← Batch 1 (3 Pods)
+# parallel-job-def34   1/1     Running   2s
+# parallel-job-ghi56   1/1     Running   2s
+# parallel-job-abc12   0/1     Completed 7s
+# parallel-job-jkl78   0/1     Running   1s   ← New Pod started
+# ... continues until 10 completions
+
+# Check Job progress
+kubectl get jobs parallel-job -w
+
+# Output:
+# NAME           COMPLETIONS   DURATION   AGE
+# parallel-job   0/10          5s         5s
+# parallel-job   3/10          10s        10s
+# parallel-job   6/10          15s        15s
+# parallel-job   9/10          20s        20s
+# parallel-job   10/10         25s        25s  ← Done!
+```
+
+**Work Queue Pattern:**
+
+```yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: work-queue
+spec:
+  completions: null   # Unknown number
+  parallelism: 5      # 5 workers
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: worker
+        image: work-queue-consumer:v1
+        # Workers pull tasks from queue
+        # Exit when queue empty
+```
+
+---
+
+### Delete Jobs
+
+```bash
+# Delete Job (keeps Pods by default)
+kubectl delete job hello-job
+
+# Job deleted, but Pods remain!
+kubectl get pods -l job-name=hello-job
+# hello-job-abc12   0/1     Completed   0    5m
+
+# Delete Job AND Pods
+kubectl delete job hello-job --cascade=foreground
+
+# Or use TTL (Time To Live After Finished)
+# (See TTLSecondsAfterFinished below)
+```
+
+---
+
+## ⚙️ Job Configuration Options
+
+### restartPolicy
+
+```yaml
+# Option 1: Never (recommended)
 spec:
   template:
     spec:
-      containers:
-      - name: backup
-        image: postgres:13
-        command:
-        - pg_dump
-        - -h
-        - database
-        - -U
-        - user
-        - -f
-        - /backup/db-backup.sql
-        volumeMounts:
-        - name: backup
-          mountPath: /backup
-      volumes:
-      - name: backup
-        persistentVolumeClaim:
-          claimName: backup-pvc
       restartPolicy: Never
+
+# Pod fails → Job creates new Pod
+# Each attempt = New Pod
+
+# Option 2: OnFailure
+spec:
+  template:
+    spec:
+      restartPolicy: OnFailure
+
+# Pod fails → Restart container in SAME Pod
+# All attempts in same Pod
+```
+
+**When to use what:**
+
+```
+restartPolicy: Never
+✓ Clean retries (new Pod each time)
+✓ Easy to debug (separate logs per attempt)
+✓ Good for idempotent tasks
+
+restartPolicy: OnFailure
+✓ Faster retries (no Pod creation overhead)
+✓ Less resource usage
+✓ Good for transient failures
+```
+
+---
+
+### TTL After Finished
+
+**Automatic cleanup:**
+
+```yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: cleanup-job
+spec:
+  # Delete Job and Pods 60s after completion
+  ttlSecondsAfterFinished: 60
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: task
+        image: busybox
+        command: ['sh', '-c', 'echo "Done"']
+```
+
+```bash
+# Job completes at t=0
+# At t=60s → Job and Pods automatically deleted!
+
+# Check after 60s
+kubectl get jobs
+# No resources found (auto-deleted!)
+```
+
+---
+
+### activeDeadlineSeconds
+
+**Timeout for Job:**
+
+```yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: timeout-job
+spec:
+  activeDeadlineSeconds: 60  # Max 60s
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: sleeper
+        image: busybox
+        command: ['sh', '-c', 'sleep 120']  # Runs 120s (exceeds limit!)
+```
+
+```bash
+# Job starts
+# After 60s → Job killed (DeadlineExceeded)
+
+kubectl describe job timeout-job
+# Reason: DeadlineExceeded
+# Message: Job was active longer than specified deadline
 ```
 
 ---
 
 ## 📅 CronJob
 
-**CronJob** = Job chạy theo lịch định kỳ (như crontab Linux)
+### Định Nghĩa
+
+**CronJob** = Tạo Jobs theo schedule (cron format).
+
+### Giải Thích
+
+```
+CronJob = Scheduled Tasks Manager
+
+Every day at 2 AM: Run backup
+Every Monday at 9 AM: Send weekly report
+Every 15 minutes: Cleanup temp files
+
+Uses standard cron syntax:
+* * * * *
+│ │ │ │ │
+│ │ │ │ └─ Day of week (0-7, 0=Sunday)
+│ │ │ └─── Month (1-12)
+│ │ └───── Day of month (1-31)
+│ └─────── Hour (0-23)
+└───────── Minute (0-59)
+```
+
+---
+
+### CronJob YAML
 
 ```yaml
 apiVersion: batch/v1
 kind: CronJob
 metadata:
-  name: daily-backup
+  name: backup-cronjob
 spec:
-  schedule: "0 2 * * *"  # 2 AM every day
+  # Schedule (cron format)
+  schedule: "0 2 * * *"  # Every day at 2 AM
+  
+  # Job template
   jobTemplate:
     spec:
       template:
         spec:
+          restartPolicy: Never
           containers:
           - name: backup
             image: backup-tool:v1
-            command:
-            - /backup.sh
-          restartPolicy: OnFailure
+            command: ["./backup.sh"]
 ```
 
----
-
-## ⏰ Cron Schedule Syntax
-
-```
-┌───────────── minute (0 - 59)
-│ ┌───────────── hour (0 - 23)
-│ │ ┌───────────── day of month (1 - 31)
-│ │ │ ┌───────────── month (1 - 12)
-│ │ │ │ ┌───────────── day of week (0 - 6) (Sunday=0)
-│ │ │ │ │
-* * * * *
-```
-
-### Examples
+### Common Cron Schedules
 
 ```yaml
+# Every minute
+schedule: "* * * * *"
+
+# Every 5 minutes
+schedule: "*/5 * * * *"
+
 # Every hour
 schedule: "0 * * * *"
 
-# Every day at 2 AM
-schedule: "0 2 * * *"
+# Every day at 3 AM
+schedule: "0 3 * * *"
 
 # Every Monday at 9 AM
 schedule: "0 9 * * 1"
 
-# Every 15 minutes
-schedule: "*/15 * * * *"
-
 # First day of month at midnight
 schedule: "0 0 1 * *"
 
-# Every weekday (Mon-Fri) at 6 PM
-schedule: "0 18 * * 1-5"
+# Every weekday (Mon-Fri) at 8 AM
+schedule: "0 8 * * 1-5"
 ```
 
 ---
 
-## ⚙️ CronJob Configurations
-
-### 1. Concurrency Policy
+### CronJob Hands-On
 
 ```yaml
-spec:
-  concurrencyPolicy: Forbid  # Default: Allow
-
-# Allow: Multiple Jobs can run concurrently
-# Forbid: Skip new Job if previous still running
-# Replace: Cancel old Job, start new one
-```
-
-**Example:**
-```
-CronJob: Every minute
-Job takes 2 minutes to complete
-
-Policy: Allow
-  0:00 → Job 1 starts
-  1:00 → Job 2 starts (Job 1 still running)
-  2:00 → Job 3 starts (Job 1 done, Job 2 running)
-
-Policy: Forbid
-  0:00 → Job 1 starts
-  1:00 → Skip (Job 1 still running)
-  2:00 → Job 2 starts (Job 1 done)
-
-Policy: Replace
-  0:00 → Job 1 starts
-  1:00 → Job 1 terminated, Job 2 starts
-```
-
----
-
-### 2. Starting Deadline
-
-```yaml
-spec:
-  startingDeadlineSeconds: 300  # 5 minutes
-```
-
-**Meaning:**
-```
-Scheduled: 2:00 AM
-K8s controller unavailable until 2:10 AM
-
-Without deadline:
-  → Job still starts at 2:10 AM (10 min late)
-
-With deadline (300s):
-  → Job skipped (missed by > 5 minutes)
-```
-
----
-
-### 3. History Limits
-
-```yaml
-spec:
-  successfulJobsHistoryLimit: 3  # Keep last 3 successful Jobs
-  failedJobsHistoryLimit: 1      # Keep last 1 failed Job
-```
-
-**Why:**
-- Old Job objects accumulate
-- Cleanup to save etcd space
-
----
-
-## 🎯 CronJob Use Cases
-
-### 1. Daily Backup
-
-```yaml
+# hello-cronjob.yaml
 apiVersion: batch/v1
 kind: CronJob
 metadata:
-  name: daily-db-backup
+  name: hello-cron
 spec:
-  schedule: "0 2 * * *"  # 2 AM daily
+  schedule: "*/1 * * * *"  # Every minute
   jobTemplate:
     spec:
       template:
         spec:
+          restartPolicy: Never
           containers:
-          - name: backup
-            image: postgres:13
-            command: ["/backup.sh"]
-          restartPolicy: OnFailure
+          - name: hello
+            image: busybox
+            command:
+            - /bin/sh
+            - -c
+            - date; echo "Hello from CronJob!"
+```
+
+```bash
+# Create CronJob
+kubectl apply -f hello-cronjob.yaml
+
+# Check CronJob
+kubectl get cronjobs
+# or
+kubectl get cj
+
+# Output:
+# NAME         SCHEDULE      SUSPEND   ACTIVE   LAST SCHEDULE   AGE
+# hello-cron   */1 * * * *   False     0        <none>          10s
+
+# Wait a minute, then check Jobs
+kubectl get jobs
+
+# Output (new Job every minute!):
+# NAME                  COMPLETIONS   DURATION   AGE
+# hello-cron-27894123   1/1           5s         55s
+# hello-cron-27894124   1/1           4s         4s  ← New Job!
+
+# Check Pods
+kubectl get pods
+
+# Output:
+# NAME                        READY   STATUS      AGE
+# hello-cron-27894123-abc12   0/1     Completed   1m
+# hello-cron-27894124-def34   0/1     Completed   10s
+
+# Logs
+kubectl logs hello-cron-27894124-def34
+# Output:
+# Mon Jan  1 10:05:00 UTC 2024
+# Hello from CronJob!
 ```
 
 ---
 
-### 2. Periodic Cleanup
+### CronJob Configuration
+
+**concurrencyPolicy:**
+
+```yaml
+spec:
+  # What if previous Job still running when next schedule?
+  concurrencyPolicy: Allow  # Default (allow concurrent)
+  # concurrencyPolicy: Forbid  # Skip if previous still running
+  # concurrencyPolicy: Replace  # Kill previous, start new
+```
+
+**Example - Forbid:**
 
 ```yaml
 apiVersion: batch/v1
 kind: CronJob
 metadata:
-  name: log-cleanup
+  name: slow-job
 spec:
-  schedule: "0 0 * * 0"  # Midnight every Sunday
+  schedule: "*/1 * * * *"  # Every minute
+  concurrencyPolicy: Forbid  # Don't allow concurrent
   jobTemplate:
     spec:
       template:
         spec:
+          restartPolicy: Never
+          containers:
+          - name: slow
+            image: busybox
+            command: ['sh', '-c', 'sleep 120']  # Runs 2 min
+```
+
+```
+t=0:   Job 1 starts (runs 2 min)
+t=1m:  Job 2 schedule → Skipped! (Job 1 still running)
+t=2m:  Job 3 schedule → Skipped! (Job 1 finished, but too late)
+t=3m:  Job 4 starts (no conflict)
+```
+
+**successfulJobsHistoryLimit:**
+
+```yaml
+spec:
+  successfulJobsHistoryLimit: 3   # Keep last 3 successful Jobs
+  failedJobsHistoryLimit: 1       # Keep last 1 failed Job
+```
+
+---
+
+### Suspend CronJob
+
+```bash
+# Temporarily stop CronJob from creating Jobs
+kubectl patch cronjob hello-cron -p '{"spec":{"suspend":true}}'
+
+# Check
+kubectl get cronjob hello-cron
+
+# Output:
+# NAME         SCHEDULE      SUSPEND   ACTIVE
+# hello-cron   */1 * * * *   True      0  ← Suspended!
+
+# Resume
+kubectl patch cronjob hello-cron -p '{"spec":{"suspend":false}}'
+```
+
+---
+
+## 🐛 Troubleshooting Jobs & CronJobs
+
+### Issue 1: Job Stuck (Not Completing)
+
+```bash
+$ kubectl get jobs
+NAME      COMPLETIONS   DURATION   AGE
+my-job    0/1           10m        10m
+
+# Job running too long, not completing
+
+# Check Pod
+$ kubectl get pods -l job-name=my-job
+NAME           READY   STATUS    AGE
+my-job-abc12   1/1     Running   10m
+
+# Pod still running, check logs
+$ kubectl logs my-job-abc12
+# (Check why task not completing)
+
+# If stuck, set activeDeadlineSeconds next time
+```
+
+---
+
+### Issue 2: CronJob Not Creating Jobs
+
+```bash
+$ kubectl get cronjob
+NAME         SCHEDULE      SUSPEND   ACTIVE   LAST SCHEDULE
+my-cron      */5 * * * *   False     0        <none>
+
+# LAST SCHEDULE = <none> → No Jobs created!
+
+# Describe CronJob
+$ kubectl describe cronjob my-cron
+
+# Events might show:
+# Warning  FailedNeedsStart  ... forbidden: ...
+
+# Possible causes:
+1. Invalid cron syntax
+2. ServiceAccount missing permissions
+3. Resource quotas exceeded
+4. CronJob suspended
+
+# Debug:
+kubectl get events | grep my-cron
+```
+
+---
+
+### Issue 3: Too Many Failed Pods
+
+```bash
+$ kubectl get pods | grep Error
+my-job-abc12   0/1   Error   0   5m
+my-job-def34   0/1   Error   0   5m
+my-job-ghi56   0/1   Error   0   5m
+... 20 more Error Pods ...
+
+# Many failed Pods accumulating
+
+# Solution: Set TTL
+spec:
+  ttlSecondsAfterFinished: 300  # Delete 5 min after finish
+
+# Or manual cleanup
+kubectl delete pods --field-selector status.phase=Failed
+```
+
+---
+
+## 🎓 Kiểm Tra Hiểu Biết
+
+**1. Khi nào dùng Job vs Deployment?**
+<details>
+<summary>Xem đáp án</summary>
+
+**Job:**
+- One-time tasks
+- Task có "completion" (done khi exit 0)
+- Database migrations, backups, batch processing
+- restartPolicy: Never/OnFailure
+
+**Deployment:**
+- Long-running services
+- Always running (no "completion")
+- Web servers, APIs, databases
+- restartPolicy: Always
+
+**Rule:** Task có "done" state? → Job. Always running? → Deployment.
+</details>
+
+**2. restartPolicy: Never vs OnFailure cho Jobs?**
+<details>
+<summary>Xem đáp án</summary>
+
+**Never:**
+- Fail → Create new Pod
+- Each attempt = New Pod
+- Pros: Clean retries, separate logs
+- Cons: More resource usage
+
+**OnFailure:**
+- Fail → Restart container in same Pod
+- All attempts in same Pod
+- Pros: Faster, less resources
+- Cons: Logs mixed, harder to debug
+
+**Recommended:** Never (easier to troubleshoot)
+</details>
+
+**3. CronJob schedule `*/10 * * * *` nghĩa là gì?**
+<details>
+<summary>Xem đáp án</summary>
+
+**Every 10 minutes**
+
+```
+*/10 * * * *
+ │   │ │ │ │
+ │   │ │ │ └─ Day of week: * (every day)
+ │   │ │ └─── Month: * (every month)
+ │   │ └───── Day: * (every day of month)
+ │   └─────── Hour: * (every hour)
+ └─────────── Minute: */10 (every 10 minutes)
+
+Jobs run at: 00, 10, 20, 30, 40, 50 minutes past every hour
+```
+</details>
+
+---
+
+## 💪 Bài Tập Thực Hành
+
+### Bài 1: Database Backup Job
+
+```yaml
+# backup-job.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: db-backup
+spec:
+  backoffLimit: 2
+  activeDeadlineSeconds: 300  # 5 min timeout
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: backup
+        image: postgres:14
+        command:
+        - /bin/sh
+        - -c
+        - |
+          echo "Starting backup at $(date)"
+          sleep 10  # Simulate backup
+          echo "Backup complete at $(date)"
+        env:
+        - name: PGHOST
+          value: "postgres-service"
+```
+
+```bash
+# Run backup Job
+kubectl apply -f backup-job.yaml
+
+# Watch
+kubectl get jobs -w
+
+# Check logs
+kubectl logs -l job-name=db-backup
+
+# Cleanup
+kubectl delete job db-backup
+```
+
+---
+
+### Bài 2: Scheduled Cleanup CronJob
+
+```yaml
+# cleanup-cronjob.yaml
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: cleanup
+spec:
+  schedule: "0 2 * * *"  # Every day at 2 AM
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 1
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: Never
           containers:
           - name: cleanup
             image: busybox
@@ -489,185 +889,70 @@ spec:
             - /bin/sh
             - -c
             - |
-              find /logs -mtime +7 -delete
-          restartPolicy: Never
+              echo "Cleanup started at $(date)"
+              echo "Removing old logs..."
+              echo "Cleanup complete at $(date)"
 ```
-
----
-
-### 3. Report Generation
-
-```yaml
-apiVersion: batch/v1
-kind: CronJob
-metadata:
-  name: weekly-report
-spec:
-  schedule: "0 9 * * 1"  # Monday 9 AM
-  jobTemplate:
-    spec:
-      template:
-        spec:
-          containers:
-          - name: report
-            image: myapp/reporter:v1
-            command: ["python", "generate_report.py"]
-          restartPolicy: OnFailure
-```
-
----
-
-### 4. Data Sync
-
-```yaml
-apiVersion: batch/v1
-kind: CronJob
-metadata:
-  name: data-sync
-spec:
-  schedule: "*/30 * * * *"  # Every 30 minutes
-  jobTemplate:
-    spec:
-      template:
-        spec:
-          containers:
-          - name: sync
-            image: rsync:latest
-            command: ["/sync-data.sh"]
-          restartPolicy: OnFailure
-```
-
----
-
-## 🔧 Operations
-
-### Job
 
 ```bash
-# Create
-kubectl apply -f job.yaml
+# Create CronJob
+kubectl apply -f cleanup-cronjob.yaml
 
-# List
+# For testing, change schedule to run every minute
+kubectl patch cronjob cleanup -p '{"spec":{"schedule":"*/1 * * * *"}}'
+
+# Watch Jobs being created
+kubectl get jobs -w
+
+# After a few minutes, check history
 kubectl get jobs
 
-# Check status
-kubectl describe job data-import
+# Should see max 3 successful Jobs (history limit)
 
-# Logs
-kubectl logs job/data-import
-
-# Delete (Pods deleted too)
-kubectl delete job data-import
-```
-
-### CronJob
-
-```bash
-# Create
-kubectl apply -f cronjob.yaml
-
-# List
-kubectl get cronjobs
-
-# Describe
-kubectl describe cronjob daily-backup
-
-# Create Job manually from CronJob (testing)
-kubectl create job --from=cronjob/daily-backup test-backup
-
-# Suspend (pause scheduling)
-kubectl patch cronjob daily-backup -p '{"spec":{"suspend":true}}'
-
-# Resume
-kubectl patch cronjob daily-backup -p '{"spec":{"suspend":false}}'
+# Cleanup
+kubectl delete cronjob cleanup
 ```
 
 ---
 
-## 💡 Best Practices
+## 🎯 Key Takeaways
 
-### ✅ DO
+1. **Job = Run to Completion**
+   - One-time tasks
+   - Completes then stops
+   - restartPolicy: Never/OnFailure
 
-1. **Idempotent tasks**
-```
-Task can run multiple times safely
-  → Same result every time
-  → Important for retry logic
-```
+2. **vs Deployment**
+   - Deployment: Always running
+   - Job: Has completion state
+   - Choose based on workload type
 
-2. **Set activeDeadlineSeconds**
-```yaml
-activeDeadlineSeconds: 3600  # Timeout after 1 hour
-```
+3. **Parallel Jobs**
+   - completions: Total needed
+   - parallelism: Concurrent Pods
+   - Work queue pattern
 
-3. **Set resource limits**
-```yaml
-resources:
-  limits:
-    cpu: 1
-    memory: 1Gi
-```
+4. **CronJob = Scheduled Jobs**
+   - Cron syntax for schedule
+   - Creates Jobs automatically
+   - concurrencyPolicy controls overlaps
 
-4. **Use OnFailure for expensive startups**
-```yaml
-restartPolicy: OnFailure  # Restart container, not Pod
-```
-
-5. **Clean up completed Jobs**
-```yaml
-# CronJob
-successfulJobsHistoryLimit: 3
-failedJobsHistoryLimit: 1
-
-# Or use TTL
-ttlSecondsAfterFinished: 86400  # Delete after 24h
-```
-
-6. **Test with manual Job**
-```bash
-kubectl create job --from=cronjob/backup test-backup
-```
+5. **Best Practices**
+   - Set backoffLimit (retry limit)
+   - Set activeDeadlineSeconds (timeout)
+   - Use ttlSecondsAfterFinished (cleanup)
+   - Set history limits for CronJobs
 
 ---
 
-### ❌ DON'T
+## 🚀 Hoàn Thành Phần 4!
 
-1. **Long-running tasks in Job** → Use Deployment
-2. **Always restart policy** → Won't work with Job
-3. **No timeout** → Job can hang forever
-4. **No resource limits** → Can starve cluster
-5. **Concurrent CronJobs without handling** → Race conditions
+Congratulations! Bạn đã hoàn thành Phần 4 - Workloads!
 
----
+**Next:** [Phần 5: Networking →](../05-networking/README.md)
 
-## 🎓 Key Takeaways
-
-1. **Job:** Run-to-completion tasks
-2. **CronJob:** Scheduled tasks (like crontab)
-3. **Completions:** Number of successful runs needed
-4. **Parallelism:** Run multiple Pods concurrently
-5. **BackoffLimit:** Retry failed Pods
-6. **restartPolicy:** Never or OnFailure (not Always)
-7. **Use cases:** Batch processing, backups, migrations, reports
+Learn về Services, Ingress, và Pod communication!
 
 ---
 
-## ❓ Câu Hỏi Tự Kiểm Tra
-
-1. Job khác gì với Deployment?
-2. completions và parallelism là gì?
-3. restartPolicy có thể là gì trong Job?
-4. CronJob schedule syntax?
-5. concurrencyPolicy trong CronJob?
-6. Khi nào dùng Job vs CronJob?
-
----
-
-**Chúc mừng!** Bạn đã hoàn thành **Phần 4: Workloads** 🎉
-
-👉 [**Phần 5: Networking**](../05-networking/README.md)
-
----
-
-[⬅️ 4.4. DaemonSet](./04-daemonset.md) | [⬆️ Phần 4](./README.md) | [🏠 Mục Lục Chính](../README.md)
-
+[⬅️ 4.4. DaemonSet](./04-daemonset.md) | [🏠 Mục Lục](../README.md) | [📂 Phần 4: Workloads](./README.md) | [➡️ Phần 5: Networking](../05-networking/README.md)

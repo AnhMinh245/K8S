@@ -1,470 +1,623 @@
 # 2.1. Tổng Quan Kiến Trúc Kubernetes
 
-> Hiểu big picture của K8s architecture
+> Hiểu big picture trước khi đi vào chi tiết từng thành phần
 
 ---
 
-## 🎯 Mục Tiêu
+## 🎯 Mục Tiêu Học
 
-- Hiểu kiến trúc tổng thể của Kubernetes cluster
-- Nắm được master-worker model
-- Biết cách các components communicate
-- Hiểu design principles của K8s
+Sau khi học xong phần này, bạn sẽ:
+- ✅ Hiểu **kiến trúc tổng thể** của Kubernetes
+- ✅ Phân biệt **Control Plane** và **Worker Node**
+- ✅ Hiểu **communication flow** giữa các components
+- ✅ Biết **vai trò** của từng thành phần chính
 
 ---
 
-## 🏗️ Kiến Trúc Tổng Thể
+## 🏗️ Kubernetes Cluster - Big Picture
 
-### Kubernetes Cluster = Control Plane + Worker Nodes
+### Cluster Là Gì?
+
+**Kubernetes Cluster** = Tập hợp servers làm việc cùng nhau như một hệ thống thống nhất.
+
+### Giải Thích Bằng Ví Dụ
+
+**Cluster giống như một công ty:**
 
 ```
-┌────────────────────────────────────────────┐
-│         KUBERNETES CLUSTER                 │
-│                                            │
-│  ┌─────────────────────────────────────┐  │
-│  │      CONTROL PLANE (Master)         │  │ ← "Bộ não"
-│  │  • API Server                       │  │   Ra quyết định
-│  │  • etcd                             │  │   Quản lý state
-│  │  • Scheduler                        │  │   Không chạy app
-│  │  • Controller Manager               │  │
-│  └─────────────────────────────────────┘  │
-│                    ▲                       │
-│                    │                       │
-│                    │ (communicate)         │
-│                    ▼                       │
-│  ┌─────────────────────────────────────┐  │
-│  │         WORKER NODES                │  │ ← "Người lao động"
-│  │  ┌──────────┐  ┌──────────┐         │  │   Chạy app thực tế
-│  │  │ Node 1   │  │ Node 2   │  ...    │  │   Execute workloads
-│  │  │ (Server) │  │ (Server) │         │  │
-│  │  └──────────┘  └──────────┘         │  │
-│  └─────────────────────────────────────┘  │
-└────────────────────────────────────────────┘
+🏢 Công Ty (Cluster)
+├── 🎯 Phòng Giám Đốc (Control Plane)
+│   ├── CEO (API Server) - Nhận mọi yêu cầu
+│   ├── CFO (etcd) - Quản lý dữ liệu/trạng thái
+│   ├── HR Manager (Scheduler) - Phân công nhân viên
+│   └── Operations Manager (Controller Manager) - Đảm bảo mọi thứ chạy đúng
+│
+└── 👷 Phòng Sản Xuất (Worker Nodes)
+    ├── Worker Node 1 - Nhân viên làm việc
+    ├── Worker Node 2 - Nhân viên làm việc  
+    └── Worker Node 3 - Nhân viên làm việc
 ```
 
 ---
 
-## 🏢 Ví Dụ Thực Tế: Công Ty
+## 📐 Kiến Trúc Tổng Thể
 
-Hãy tưởng tượng Kubernetes cluster như một **công ty**:
-
-### 🏛️ Control Plane = Văn Phòng Điều Hành
-
-**Vai trò:**
-- Ra quyết định chiến lược
-- Quản lý tài nguyên
-- Giám sát hoạt động
-- KHÔNG làm việc trực tiếp với khách hàng
-
-**Thành viên:**
-- **CEO (API Server):** Người nhận mọi requests, điều phối
-- **Kế toán (etcd):** Lưu trữ mọi thông tin tài chính, nhân sự
-- **HR (Scheduler):** Phân công nhân viên vào dự án
-- **Giám sát viên (Controller Manager):** Đảm bảo mọi việc đúng kế hoạch
-
-### 👷 Worker Nodes = Nhân Viên Thực Thi
-
-**Vai trò:**
-- Làm việc thực tế
-- Phục vụ khách hàng
-- Báo cáo về văn phòng
-
-**Mỗi nhân viên (Node) có:**
-- **Trưởng nhóm (kubelet):** Quản lý công việc trong nhóm
-- **Điện thoại viên (kube-proxy):** Điều hướng cuộc gọi
-- **Công cụ làm việc (Container Runtime):** Docker, containerd...
-
----
-
-## 🔄 Communication Flow
-
-### Scenario: Deploy một ứng dụng
+### Diagram Cluster Architecture
 
 ```
-1. User → kubectl apply -f app.yaml
-   "Tôi muốn deploy 3 replicas của app"
+┌─────────────────────────────────────────────────────────────┐
+│                    KUBERNETES CLUSTER                       │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  ┌────────────────────────────────────────────────────┐    │
+│  │         CONTROL PLANE (Bộ Não)                     │    │
+│  │         Master Components                          │    │
+│  ├────────────────────────────────────────────────────┤    │
+│  │                                                    │    │
+│  │  ┌──────────────┐  ┌──────────────┐             │    │
+│  │  │ API Server   │  │    etcd      │             │    │
+│  │  │ (Điểm vào)   │  │ (Database)   │             │    │
+│  │  └──────┬───────┘  └──────────────┘             │    │
+│  │         │                                         │    │
+│  │  ┌──────┴────────┐  ┌──────────────┐            │    │
+│  │  │  Scheduler    │  │ Controller   │            │    │
+│  │  │ (Phân công)   │  │  Manager     │            │    │
+│  │  └───────────────┘  │ (Giám sát)   │            │    │
+│  │                     └──────────────┘            │    │
+│  └────────────────────────────────────────────────────┘    │
+│                           ↕                                 │
+│              [Communication via API]                        │
+│                           ↕                                 │
+│  ┌────────────────────────────────────────────────────┐    │
+│  │         WORKER NODES (Thợ Làm Việc)               │    │
+│  │         Data Plane                                 │    │
+│  ├────────────────────────────────────────────────────┤    │
+│  │                                                    │    │
+│  │  ┌─────────────────────────────────────────┐     │    │
+│  │  │  NODE 1                                 │     │    │
+│  │  │  ┌─────────────────────────────────┐   │     │    │
+│  │  │  │ kubelet (Agent)                 │   │     │    │
+│  │  │  │ kube-proxy (Network)            │   │     │    │
+│  │  │  │ Container Runtime (Docker)      │   │     │    │
+│  │  │  ├─────────────────────────────────┤   │     │    │
+│  │  │  │  PODS (Applications)            │   │     │    │
+│  │  │  │  ┌────┐ ┌────┐ ┌────┐          │   │     │    │
+│  │  │  │  │Pod1│ │Pod2│ │Pod3│          │   │     │    │
+│  │  │  │  └────┘ └────┘ └────┘          │   │     │    │
+│  │  │  └─────────────────────────────────┘   │     │    │
+│  │  └─────────────────────────────────────────┘     │    │
+│  │                                                    │    │
+│  │  ┌─────────────────────────────────────────┐     │    │
+│  │  │  NODE 2                                 │     │    │
+│  │  │  ┌─────────────────────────────────┐   │     │    │
+│  │  │  │ kubelet + kube-proxy + Runtime  │   │     │    │
+│  │  │  │  PODS: ┌────┐ ┌────┐            │   │     │    │
+│  │  │  │        │Pod4│ │Pod5│            │   │     │    │
+│  │  │  │        └────┘ └────┘            │   │     │    │
+│  │  │  └─────────────────────────────────┘   │     │    │
+│  │  └─────────────────────────────────────────┘     │    │
+│  │                                                    │    │
+│  │  ┌─────────────────────────────────────────┐     │    │
+│  │  │  NODE 3                                 │     │    │
+│  │  │  ┌─────────────────────────────────┐   │     │    │
+│  │  │  │ kubelet + kube-proxy + Runtime  │   │     │    │
+│  │  │  │  PODS: ┌────┐ ┌────┐ ┌────┐    │   │     │    │
+│  │  │  │        │Pod6│ │Pod7│ │Pod8│    │   │     │    │
+│  │  │  │        └────┘ └────┘ └────┘    │   │     │    │
+│  │  │  └─────────────────────────────────┘   │     │    │
+│  │  └─────────────────────────────────────────┘     │    │
+│  └────────────────────────────────────────────────────┘    │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
 
-2. kubectl → API Server (Control Plane)
-   "Nhận yêu cầu, validate, lưu vào etcd"
-
-3. API Server → etcd
-   "Lưu desired state: 3 replicas của app"
-
-4. Controller Manager → API Server (polling)
-   "Có gì mới không?"
-   API Server: "Cần 3 replicas app, hiện có 0"
-
-5. Controller Manager → API Server
-   "Tạo 3 Pods"
-
-6. Scheduler → API Server (watch)
-   "Có Pods cần schedule?"
-   API Server: "Có 3 Pods pending"
-
-7. Scheduler → API Server
-   "Pod 1 → Node A, Pod 2 → Node B, Pod 3 → Node C"
-   (Based on resources available)
-
-8. kubelet (trên Node A) → API Server (polling)
-   "Có công việc cho tôi không?"
-   API Server: "Chạy Pod 1"
-
-9. kubelet → Container Runtime
-   "Pull image và start container"
-
-10. kubelet → API Server
-    "Pod 1 đang running"
-
-11. API Server → etcd
-    "Update current state: 1/3 Pods running"
-
-... Lặp lại cho Node B và Node C ...
-
-12. Current state = Desired state (3/3 running) ✅
-```
-
-### Key Points
-
-1. **Mọi thứ đi qua API Server:** Single point of entry
-2. **etcd = Source of truth:** Lưu mọi state
-3. **Controllers watch API Server:** Liên tục giám sát
-4. **kubelet pulls work:** Không phải push
-5. **Declarative:** Bạn khai báo "muốn gì", K8s tự xử lý "làm thế nào"
-
----
-
-## 🎨 Design Principles Của Kubernetes
-
-### 1. **Declarative Configuration**
-
-**Imperative (Traditional):**
-```bash
-# Bạn chỉ đạo từng bước
-1. Create container 1
-2. Wait for it to be ready
-3. Create container 2
-4. Configure load balancer
-5. Update DNS
-...
-```
-
-**Declarative (Kubernetes way):**
-```yaml
-# Bạn khai báo desired state
-desired_state:
-  app: web
-  replicas: 3
-  version: v1.2
-
-# K8s tự động làm mọi thứ để đạt được state này
-```
-
-**Ví dụ thực tế:**
-```
-Imperative: "Đi thẳng 500m, rẽ phải, qua cầu, rẽ trái..."
-Declarative: "Đi đến địa chỉ 123 Main St" → GPS tự tính đường
+USER/DEVELOPER
+      ↓
+   kubectl
+      ↓
+  API Server (Control Plane)
+      ↓
+  Worker Nodes (Pods running)
 ```
 
 ---
 
-### 2. **Control Loop (Reconciliation Loop)**
+## 🎯 Control Plane vs Worker Nodes
 
-**Cách hoạt động:**
-```
-loop forever:
-  current_state = get_from_etcd()
-  desired_state = get_from_user()
-  
-  if current_state != desired_state:
-    take_action_to_match()
-  
-  sleep(interval)
-```
+### So Sánh Chi Tiết
 
-**Ví dụ:**
-```
-Desired: 3 Pods running
-Current: 2 Pods running (1 Pod crashed)
-
-Controller detects difference:
-  → Creates 1 new Pod
-  
-Current: 3 Pods running ✅
-```
-
-**Tương tự:**
-- **Thermostat:** Desired temp = 22°C, current = 20°C → Turn on heater
-- **Cruise control:** Desired speed = 100km/h, current = 95km/h → Accelerate
+| Đặc Điểm | Control Plane | Worker Nodes |
+|----------|---------------|--------------|
+| **Vai trò** | Bộ não - Ra quyết định | Thợ làm việc - Thực hiện công việc |
+| **Số lượng** | 1-3 nodes (HA) | Nhiều nodes (10, 100, 1000+) |
+| **Chạy gì?** | K8s system components | Application Pods |
+| **Quan trọng** | Critical - Chết = cluster chết | Important - Chết 1 node OK |
+| **Tài nguyên** | Ít CPU/RAM | Nhiều CPU/RAM cho apps |
+| **Expose** | API Server public | Thường private |
 
 ---
 
-### 3. **API-Driven Architecture**
+## 🧠 Control Plane - Bộ Não
 
-**Everything is an API call:**
+### Thành Phần Chính
+
+**1. API Server (kube-apiserver)**
 ```
-User action          → API call
-Controller logic     → API call
-Monitoring           → API call
-External tools       → API call
-```
+Vai trò: Cổng vào duy nhất của cluster
+Ví dụ: Receptionist tại công ty
 
-**Benefits:**
-- ✅ **Extensible:** Easy to add new features
-- ✅ **Programmatic:** Automate everything
-- ✅ **Consistent:** Same interface for everything
-- ✅ **Observable:** Audit all actions
+Làm gì:
+├── Nhận tất cả requests (kubectl, dashboard, etc.)
+├── Authenticate & authorize
+├── Validate requests
+└── Forward đến components khác
 
----
-
-### 4. **Distributed System**
-
-**Kubernetes là distributed system:**
-
-**Characteristics:**
-- Multiple machines work together
-- No single point of failure (với HA setup)
-- Eventual consistency
-- Network partitions possible
-
-**Challenges:**
-- More complex than single-server
-- Network issues
-- Split-brain scenarios
-- Debugging harder
-
-**Solutions K8s provides:**
-- Leader election (etcd, API server)
-- Health checks
-- Retry logic
-- Graceful degradation
-
----
-
-### 5. **Modularity & Extensibility**
-
-**K8s is modular:**
-
-```
-Core K8s:
-  ├─ API Server
-  ├─ Scheduler
-  ├─ Controller Manager
-  └─ ...
-
-Pluggable components:
-  ├─ Container Runtime (Docker, containerd, CRI-O)
-  ├─ Network Plugin (Calico, Flannel, Weave)
-  ├─ Storage Plugin (EBS, GCE PD, NFS)
-  └─ Custom Controllers (Operators)
+Communication:
+User → kubectl → API Server → Other components
 ```
 
-**Extension points:**
-- **CRI (Container Runtime Interface):** Swap container runtime
-- **CNI (Container Network Interface):** Swap network solution
-- **CSI (Container Storage Interface):** Swap storage provider
-- **Custom Resources:** Extend K8s API
-- **Operators:** Custom automation logic
-
----
-
-## 📦 Components Overview
-
-### Control Plane Components
-
-| Component | Vai Trò | Ví Dụ Thực Tế |
-|-----------|---------|---------------|
-| **API Server** | Gateway, authentication, authorization | CEO công ty, nhận mọi requests |
-| **etcd** | Distributed key-value store | Database, sổ sách công ty |
-| **Scheduler** | Assign Pods to Nodes | HR phân công nhân viên |
-| **Controller Manager** | State reconciliation | Giám sát viên đảm bảo KPI |
-| **Cloud Controller** | Cloud integration | Liên lạc với cloud providers |
-
-### Node Components
-
-| Component | Vai Trò | Ví Dụ Thực Tế |
-|-----------|---------|---------------|
-| **kubelet** | Node agent, manage Pods | Trưởng nhóm quản lý công việc |
-| **kube-proxy** | Network proxy, load balancing | Tổng đài viên điều hướng calls |
-| **Container Runtime** | Run containers | Công cụ thực tế làm việc |
-
----
-
-## 🔍 Deep Dive: Control Plane vs Worker Node
-
-### Control Plane (Master)
-
-**Đặc điểm:**
-- ❌ **KHÔNG chạy application workloads** (by default)
-- ✅ **Chạy management components**
-- ✅ **Ra quyết định**
-- ✅ **Lưu trữ state**
-
-**High Availability:**
-- Production: 3 hoặc 5 master nodes
-- Etcd cluster: 3, 5, hoặc 7 members
-- API Server: Active-active (load balanced)
-- Scheduler, Controller Manager: Active-passive (leader election)
-
-**Hardware requirements (production):**
+**2. etcd**
 ```
-CPU: 4 cores minimum
-RAM: 8 GB minimum
-Disk: SSD, fast I/O (for etcd)
-Network: Low latency
+Vai trò: Database của cluster
+Ví dụ: Kho lưu trữ hồ sơ công ty
+
+Lưu gì:
+├── Cluster state
+├── Configuration data
+├── Pods đang chạy ở đâu
+├── Services có những Endpoints nào
+└── Mọi thông tin về cluster
+
+Đặc điểm:
+✓ Distributed key-value store
+✓ Consistent và highly-available
+✓ Chỉ API Server có thể đọc/ghi
+```
+
+**3. Scheduler (kube-scheduler)**
+```
+Vai trò: Quyết định Pod chạy ở Node nào
+Ví dụ: HR Manager phân công nhân viên
+
+Làm gì:
+1. Watch for new Pods (chưa assign Node)
+2. Chọn Node phù hợp nhất dựa trên:
+   ├── Resource available (CPU, RAM)
+   ├── Node constraints (taints, tolerations)
+   ├── Affinity/Anti-affinity rules
+   └── Data locality
+3. Assign Pod → Node
+```
+
+**4. Controller Manager (kube-controller-manager)**
+```
+Vai trò: Đảm bảo desired state = actual state
+Ví dụ: Operations Manager giám sát mọi thứ
+
+Gồm nhiều controllers:
+├── Node Controller: Watch nodes health
+├── Replication Controller: Đảm bảo đủ số Pods
+├── Endpoints Controller: Populate Endpoints
+├── Service Account Controller: Tạo default accounts
+└── Nhiều controllers khác...
+
+Logic: Continuous reconciliation loop
+Desired: 3 Pods
+Actual: 2 Pods (1 crashed)
+→ Controller: Tạo thêm 1 Pod!
 ```
 
 ---
 
-### Worker Node
+## 👷 Worker Nodes - Thợ Làm Việc
 
-**Đặc điểm:**
-- ✅ **Chạy application workloads** (Pods)
-- ❌ **KHÔNG ra quyết định**
-- ✅ **Nhận lệnh từ Control Plane**
-- ✅ **Báo cáo status**
+### Thành Phần Chính
 
-**Scaling:**
-- Có thể có hàng trăm/ngàn worker nodes
-- Horizontal scaling
-- Heterogeneous: Nodes có thể khác size
-
-**Hardware requirements:**
+**1. kubelet**
 ```
-CPU: Tùy workload (2-64 cores)
-RAM: Tùy workload (4-256 GB)
-Disk: For logs, temp storage
-Network: High bandwidth
-```
+Vai trò: Agent chạy trên mỗi Node
+Ví dụ: Supervisor của mỗi nhân viên
 
----
+Làm gì:
+├── Communicate với API Server
+├── Watch for Pods assigned to this Node
+├── Start/Stop containers (via Container Runtime)
+├── Monitor Pod health
+├── Report status về API Server
+└── Mount volumes
 
-## 🌐 Network Architecture
-
-### Kubernetes Network Model
-
-**Principles:**
-1. **Every Pod gets its own IP address**
-   - No NAT between Pods
-   - Flat network space
-
-2. **Pods can communicate with all other Pods**
-   - Without NAT
-   - Across nodes
-
-3. **Nodes can communicate with all Pods**
-   - Without NAT
-
-4. **The IP a Pod sees itself as is the same IP others see it as**
-
-**Implementation:**
-```
-┌────────────────────────────────────────┐
-│            Node 1                      │
-│  Pod A (IP: 10.1.1.5)                  │
-│  Pod B (IP: 10.1.1.6)                  │
-└────────────────────────────────────────┘
-            │
-            │ (Network fabric - CNI plugin)
-            │
-┌────────────────────────────────────────┐
-│            Node 2                      │
-│  Pod C (IP: 10.1.2.5)                  │
-│  Pod D (IP: 10.1.2.6)                  │
-└────────────────────────────────────────┘
-
-Pod A can directly ping Pod C at 10.1.2.5
+Đặc điểm:
+✓ Primary "node agent"
+✓ Chạy trên MỌI node (kể cả control plane)
+✓ Không manage containers không được K8s tạo
 ```
 
-**CNI Plugins (Network implementations):**
-- **Calico:** Network policies, BGP
-- **Flannel:** Simple overlay network
-- **Weave:** Mesh network
-- **Cilium:** eBPF-based, advanced
-
----
-
-## 💾 Storage Architecture
-
-**Kubernetes storage model:**
-
+**2. kube-proxy**
 ```
-┌──────────────────┐
-│   Application    │
-│   (Container)    │
-└────────┬─────────┘
-         │ mount
-         ▼
-┌──────────────────┐
-│   Volume         │ ← Abstract storage
-└────────┬─────────┘
-         │
-         ▼
-┌──────────────────┐
-│ Storage Backend  │ ← Actual storage
-│ (EBS, NFS, etc)  │
-└──────────────────┘
+Vai trò: Network proxy
+Ví dụ: Nhân viên bưu điện - Forward thư/gói hàng
+
+Làm gì:
+├── Maintain network rules trên Node
+├── Enable Pod-to-Pod communication
+├── Implement Service abstraction
+├── Load balance traffic đến Pods
+└── Support ClusterIP, NodePort, LoadBalancer
+
+Implementation modes:
+├── iptables (phổ biến)
+├── IPVS (performance cao hơn)
+└── userspace (legacy)
 ```
 
-**Storage types:**
-1. **Ephemeral:** emptyDir, hostPath (mất khi Pod xóa)
-2. **Persistent:** PV/PVC (giữ data dù Pod xóa)
-3. **Projected:** ConfigMap, Secret (mount vào Pod)
-
----
-
-## 🛡️ Security Architecture
-
-### Defense in Depth
-
+**3. Container Runtime**
 ```
-┌───────────────────────────────────────┐
-│  Layer 1: Network Security           │ ← Network Policies
-├───────────────────────────────────────┤
-│  Layer 2: Authentication              │ ← Who are you?
-├───────────────────────────────────────┤
-│  Layer 3: Authorization (RBAC)        │ ← What can you do?
-├───────────────────────────────────────┤
-│  Layer 4: Admission Control           │ ← Is this allowed?
-├───────────────────────────────────────┤
-│  Layer 5: Pod Security                │ ← Runtime security
-├───────────────────────────────────────┤
-│  Layer 6: Secret Management           │ ← Encrypt data
-└───────────────────────────────────────┘
+Vai trò: Chạy containers
+Ví dụ: Máy móc để nhân viên làm việc
+
+Options:
+├── Docker (phổ biến nhất)
+├── containerd (lightweight)
+├── CRI-O (OCI-compliant)
+└── Others...
+
+Làm gì:
+├── Pull images từ registry
+├── Start/stop containers
+├── Manage container lifecycle
+└── Resource isolation
 ```
 
 ---
 
-## 🎓 Key Takeaways
+## 🔄 Communication Flow - Luồng Hoạt Động
 
-1. **Master-Worker model:** Control Plane ra quyết định, Workers thực thi
-2. **API Server = Central hub:** Mọi communication đi qua đây
-3. **etcd = Source of truth:** Lưu tất cả state
-4. **Declarative:** Khai báo desired state, K8s reconcile
-5. **Control loops:** Liên tục so sánh current vs desired state
-6. **Distributed system:** Multiple machines, no SPOF (với HA)
-7. **Extensible:** Plugin architecture, dễ customize
+### Scenario: Deploy Application
+
+**Step-by-step workflow:**
+
+```
+┌──────────────────────────────────────────────────────────┐
+│  1. USER CREATES DEPLOYMENT                              │
+└──────────────────────────────────────────────────────────┘
+$ kubectl create deployment webapp --image=nginx --replicas=3
+                    ↓
+┌──────────────────────────────────────────────────────────┐
+│  2. kubectl → API SERVER                                 │
+│     "Tạo Deployment với 3 Pods"                          │
+└──────────────────────────────────────────────────────────┘
+                    ↓
+┌──────────────────────────────────────────────────────────┐
+│  3. API SERVER                                           │
+│     ✓ Authenticate user                                  │
+│     ✓ Authorize request                                  │
+│     ✓ Validate Deployment spec                           │
+│     ✓ Write to etcd: "Desired state: 3 Pods"           │
+└──────────────────────────────────────────────────────────┘
+                    ↓
+┌──────────────────────────────────────────────────────────┐
+│  4. DEPLOYMENT CONTROLLER (watching API Server)          │
+│     "New Deployment detected!"                           │
+│     → Tạo ReplicaSet (owner của Pods)                    │
+│     → API Server: "Tạo ReplicaSet với 3 Pods"          │
+└──────────────────────────────────────────────────────────┘
+                    ↓
+┌──────────────────────────────────────────────────────────┐
+│  5. REPLICASET CONTROLLER                                │
+│     "New ReplicaSet detected!"                           │
+│     → API Server: "Tạo 3 Pods"                          │
+└──────────────────────────────────────────────────────────┘
+                    ↓
+┌──────────────────────────────────────────────────────────┐
+│  6. API SERVER writes to etcd                            │
+│     "3 Pods cần được tạo (status: Pending)"             │
+└──────────────────────────────────────────────────────────┘
+                    ↓
+┌──────────────────────────────────────────────────────────┐
+│  7. SCHEDULER (watching for Pending Pods)                │
+│     "3 Pods chưa có Node!"                               │
+│                                                          │
+│     Evaluate Nodes:                                      │
+│     Node 1: CPU 40%, RAM 50% ✓                          │
+│     Node 2: CPU 30%, RAM 40% ✓✓ (best fit!)            │
+│     Node 3: CPU 60%, RAM 70% ✓                          │
+│                                                          │
+│     Decision:                                            │
+│     ├─ Pod1 → Node 2                                     │
+│     ├─ Pod2 → Node 1                                     │
+│     └─ Pod3 → Node 2                                     │
+│                                                          │
+│     → API Server: Update Pod specs với Node assignment  │
+└──────────────────────────────────────────────────────────┘
+                    ↓
+┌──────────────────────────────────────────────────────────┐
+│  8. KUBELET on Node 2 (watching API Server)              │
+│     "2 Pods assigned to me!"                             │
+│                                                          │
+│     For each Pod:                                        │
+│     1. Pull image: nginx                                 │
+│     2. Create container via Container Runtime            │
+│     3. Start container                                   │
+│     4. Monitor container                                 │
+│     5. Report status → API Server                        │
+└──────────────────────────────────────────────────────────┘
+                    ↓
+┌──────────────────────────────────────────────────────────┐
+│  9. KUBELET on Node 1 (same process)                     │
+│     "1 Pod assigned to me!"                              │
+│     → Pull, create, start, monitor                       │
+└──────────────────────────────────────────────────────────┘
+                    ↓
+┌──────────────────────────────────────────────────────────┐
+│  10. API SERVER updates etcd                             │
+│      Pod1: Running on Node 2 ✅                          │
+│      Pod2: Running on Node 1 ✅                          │
+│      Pod3: Running on Node 2 ✅                          │
+└──────────────────────────────────────────────────────────┘
+                    ↓
+┌──────────────────────────────────────────────────────────┐
+│  11. USER CHECKS STATUS                                  │
+└──────────────────────────────────────────────────────────┘
+$ kubectl get pods
+NAME                     READY   STATUS    RESTARTS   AGE
+webapp-7d8bc4c5d-abc12   1/1     Running   0          30s
+webapp-7d8bc4c5d-def34   1/1     Running   0          30s
+webapp-7d8bc4c5d-ghi56   1/1     Running   0          30s
+
+✅ Deployment successful!
+```
 
 ---
 
-## ❓ Câu Hỏi Tự Kiểm Tra
+## 💡 Tại Sao Kiến Trúc Này?
 
-1. Vẽ kiến trúc K8s cluster với Control Plane và Worker Nodes
-2. Giải thích control loop hoạt động như thế nào
-3. Tại sao mọi request phải đi qua API Server?
-4. etcd lưu trữ thông tin gì?
-5. Sự khác biệt chính giữa Control Plane và Worker Node?
-6. Declarative vs Imperative configuration khác nhau như thế nào?
+### Design Principles
+
+**1. Separation of Concerns**
+```
+Control Plane: Quyết định
+Worker Nodes: Thực hiện
+
+Lợi ích:
+✓ Scale riêng biệt
+✓ Failure isolation
+✓ Easier maintenance
+```
+
+**2. Declarative API**
+```
+Bạn nói: "Tôi muốn 3 Pods"
+K8s làm: "OK, để tôi lo!"
+
+Không cần nói:
+❌ "Tạo Pod1 trên Node1"
+❌ "Tạo Pod2 trên Node2"
+❌ "Config networking..."
+
+K8s tự động handle tất cả!
+```
+
+**3. Watch & Reconciliation Loop**
+```
+Controllers liên tục:
+1. Watch actual state
+2. Compare với desired state
+3. Take action nếu khác nhau
+4. Repeat
+
+→ Self-healing automatic!
+```
+
+**4. API-Driven**
+```
+Mọi interaction qua API Server:
+✓ Centralized control
+✓ Auditable
+✓ Secure (authn/authz)
+✓ Extensible
+```
+
+---
+
+## 🎓 Kiểm Tra Hiểu Biết
+
+### Câu Hỏi Tự Kiểm Tra
+
+**1. Control Plane và Worker Nodes khác nhau như thế nào?**
+<details>
+<summary>Xem đáp án</summary>
+
+**Control Plane (Bộ não):**
+- Vai trò: Ra quyết định, điều phối
+- Components: API Server, etcd, Scheduler, Controller Manager
+- Chạy: K8s system components
+- Quan trọng: Critical - chết = cluster chết
+
+**Worker Nodes (Thợ):**
+- Vai trò: Thực hiện công việc, chạy applications
+- Components: kubelet, kube-proxy, Container Runtime
+- Chạy: Application Pods
+- Redundant: Chết 1 node, apps vẫn OK trên nodes khác
+</details>
+
+**2. API Server làm gì?**
+<details>
+<summary>Xem đáp án</summary>
+
+API Server là cổng vào duy nhất của cluster:
+1. Nhận tất cả requests (kubectl, dashboard)
+2. Authenticate & authorize
+3. Validate requests
+4. Write/Read từ etcd
+5. Forward requests đến components khác
+
+Analogy: Receptionist/Switchboard operator
+</details>
+
+**3. Scheduler quyết định Pod chạy ở đâu dựa trên gì?**
+<details>
+<summary>Xem đáp án</summary>
+
+Scheduler evaluate dựa trên:
+1. **Resource availability**: CPU, RAM available trên node
+2. **Resource requests**: Pod cần bao nhiêu CPU/RAM
+3. **Node constraints**: Taints, tolerations, node selectors
+4. **Affinity rules**: Pod muốn/không muốn chạy gần Pod nào
+5. **Data locality**: Data ở đâu (optimize network)
+6. **Priority**: Pod nào priority cao hơn
+
+Choose node có score cao nhất!
+</details>
+
+**4. Vẽ flow khi bạn run `kubectl create deployment`**
+<details>
+<summary>Xem đáp án</summary>
+
+```
+kubectl 
+  → API Server (validate, write etcd)
+    → Deployment Controller (create ReplicaSet)
+      → ReplicaSet Controller (create Pods)
+        → API Server (write Pods to etcd)
+          → Scheduler (assign Pods to Nodes)
+            → kubelet on Nodes (create containers)
+              → Containers running!
+```
+</details>
+
+---
+
+## 💪 Bài Tập Thực Hành
+
+### Bài 1: Identify Components
+
+**Tình huống:** Các components sau thuộc Control Plane hay Worker Node?
+
+1. API Server
+2. kubelet
+3. etcd
+4. kube-proxy
+5. Scheduler
+6. Container Runtime
+7. Controller Manager
+
+<details>
+<summary>Xem đáp án</summary>
+
+**Control Plane:**
+- API Server ✓
+- etcd ✓
+- Scheduler ✓
+- Controller Manager ✓
+
+**Worker Node:**
+- kubelet ✓
+- kube-proxy ✓
+- Container Runtime ✓
+</details>
+
+---
+
+### Bài 2: Trace the Flow
+
+**Pod crash, vẽ flow K8s tự phục hồi:**
+
+<details>
+<summary>Xem đáp án</summary>
+
+```
+1. Container crashes
+   ↓
+2. kubelet detects (health check fail)
+   ↓
+3. kubelet reports to API Server
+   "Pod X on Node Y is dead"
+   ↓
+4. API Server writes to etcd
+   "Pod X: status = Failed"
+   ↓
+5. ReplicaSet Controller watches API
+   "Desired: 3 Pods, Actual: 2 Pods"
+   "Need to create 1 Pod!"
+   ↓
+6. ReplicaSet Controller → API Server
+   "Create new Pod"
+   ↓
+7. API Server writes to etcd
+   "New Pod: status = Pending"
+   ↓
+8. Scheduler watches for Pending Pods
+   "New Pod needs a Node!"
+   Evaluate nodes → Choose Node Z
+   ↓
+9. Scheduler → API Server
+   "Assign Pod to Node Z"
+   ↓
+10. kubelet on Node Z watches API
+    "New Pod assigned to me!"
+    Pull image → Create container → Start
+    ↓
+11. kubelet → API Server
+    "Pod is Running!"
+    ↓
+12. Self-healing complete! ✅
+```
+</details>
+
+---
+
+## 🎯 Key Takeaways
+
+### Ghi Nhớ 5 Điều Quan Trọng
+
+1. **Cluster = Control Plane + Worker Nodes**
+   - Control Plane: Bộ não (quyết định)
+   - Worker Nodes: Thợ làm việc (thực hiện)
+
+2. **API Server = Cổng vào duy nhất**
+   - Mọi request đều qua API Server
+   - Tương tác với etcd
+   - Central hub
+
+3. **etcd = Database của cluster**
+   - Lưu mọi state
+   - Single source of truth
+   - Highly available
+
+4. **Scheduler = Phân công thông minh**
+   - Quyết định Pod chạy ở Node nào
+   - Dựa trên resources, constraints, affinity
+
+5. **Controllers = Reconciliation loops**
+   - Watch desired vs actual state
+   - Take action to match
+   - Self-healing mechanism
+
+---
+
+## 📚 Thuật Ngữ Cần Nhớ
+
+| Thuật Ngữ | Tiếng Việt | Ý Nghĩa |
+|-----------|------------|---------|
+| **Cluster** | Cluster | Tập hợp servers hoạt động như một hệ thống |
+| **Control Plane** | Control Plane | Bộ não của cluster (master) |
+| **Worker Node** | Worker Node | Server chạy application Pods |
+| **API Server** | API Server | Cổng vào duy nhất của cluster |
+| **etcd** | etcd | Database key-value lưu cluster state |
+| **Scheduler** | Scheduler | Component phân công Pods to Nodes |
+| **Controller** | Controller | Component đảm bảo desired state |
+| **kubelet** | kubelet | Agent chạy trên mỗi Node |
+| **kube-proxy** | kube-proxy | Network proxy trên mỗi Node |
 
 ---
 
 ## 🚀 Tiếp Theo
 
-👉 [2.2. Control Plane - Bộ Não Của Cluster](./02-control-plane.md)
+Bạn đã hiểu kiến trúc tổng thể của Kubernetes!
 
-Chúng ta sẽ đi sâu vào từng component của Control Plane.
+**Next:** [2.2. Control Plane - Chi Tiết →](./02-control-plane.md)
+
+Ở phần tiếp theo, chúng ta sẽ deep dive vào từng component của Control Plane, hiểu chi tiết cách chúng hoạt động.
 
 ---
 
-[⬅️ Về Phần 2: Architecture](./README.md) | [🏠 Mục Lục Chính](../README.md)
-
-
+[⬅️ Phần 1: Introduction](../01-introduction/README.md) | [🏠 Mục Lục Chính](../README.md) | [📂 Phần 2: Architecture](./README.md) | [➡️ 2.2. Control Plane](./02-control-plane.md)
