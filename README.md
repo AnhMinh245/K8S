@@ -224,6 +224,107 @@ Persistent data trong môi trường container
 
 ---
 
+### 📊 [**Phần 10: Observability Fundamentals**](./10-observability-fundamentals/README.md)
+> Kiến thức K8s nền tảng cho Monitoring và Observability
+
+- [10.1. Metrics Architecture](./10-observability-fundamentals/01-metrics-architecture.md)
+  - Metrics Server và cAdvisor
+  - Custom Metrics API
+  - RBAC cho metrics access
+  
+- [10.2. Logging Architecture](./10-observability-fundamentals/02-logging-architecture.md)
+  - Container logs trong K8s
+  - Log collection patterns (DaemonSet)
+  - Structured logging
+  
+- [10.3. Labels & Annotations cho Observability](./10-observability-fundamentals/03-labels-annotations-observability.md)
+  - Standard labels
+  - Mapping K8s labels → monitoring tags
+  - Annotations cho configuration
+  
+- [10.4. Service Discovery cho Monitoring](./10-observability-fundamentals/04-service-discovery-monitoring.md)
+  - Kubernetes API discovery
+  - Endpoints tracking
+  - Auto-discovery patterns
+  
+- [10.5. Deploying Monitoring Agents](./10-observability-fundamentals/05-deploying-monitoring-agents.md)
+  - DaemonSet deployment pattern
+  - Datadog Agent deployment
+  - Dynatrace OneAgent deployment
+  - RBAC và security considerations
+  
+- [10.6. Events và Audit Logs](./10-observability-fundamentals/06-events-audit-logs.md)
+  - Kubernetes Events
+  - Event monitoring
+  - Audit logging
+  - Compliance và troubleshooting
+
+---
+
+### 🚀 [**Phần 11: Production Deployment**](./11-production-deployment/README.md) 🔥 **MỚI!**
+> Triển khai K8s trên thực tế - Kinh nghiệm production
+
+- [11.1. Production Cluster Setup](./11-production-deployment/01-cluster-setup.md) ⭐⭐⭐⭐⭐
+  - Managed vs Self-hosted Kubernetes
+  - GKE/EKS/AKS setup với Terraform
+  - Network architecture design
+  - High availability configuration
+  - Security từ infrastructure level
+  
+- [11.2. Deployment Strategies](./11-production-deployment/02-deployment-strategies.md)
+  - Blue-Green Deployment
+  - Canary Deployment
+  - Progressive delivery
+  - A/B Testing
+  
+- [11.3. CI/CD Integration](./11-production-deployment/03-cicd-integration.md) ⭐⭐⭐⭐⭐
+  - GitOps workflow (ArgoCD, Flux)
+  - CI pipelines (GitLab CI, GitHub Actions)
+  - Security scanning (Trivy, SAST)
+  - Automated deployments
+  - Image signing và verification
+  
+- [11.4. Security Best Practices](./11-production-deployment/04-security-hardening.md)
+  - RBAC implementation
+  - Pod Security Standards
+  - Network Policies
+  - Secrets management (Vault, External Secrets)
+  - Compliance frameworks
+  
+- [11.5. Monitoring & Logging](./11-production-deployment/05-monitoring-logging.md)
+  - Prometheus + Grafana stack
+  - Log aggregation (ELK, Loki)
+  - Distributed tracing (Jaeger)
+  - Alerting strategies
+  - SLI/SLO/SLA
+  
+- [11.6. Backup & Disaster Recovery](./11-production-deployment/06-backup-dr.md)
+  - Velero backup
+  - etcd backup/restore
+  - Multi-region DR
+  - RTO/RPO planning
+  
+- [11.7. Cost Optimization](./11-production-deployment/07-cost-optimization.md)
+  - Resource right-sizing
+  - Spot/Preemptible instances
+  - Cost monitoring (Kubecost)
+  - Autoscaling optimization
+  
+- [11.8. Troubleshooting Production Issues](./11-production-deployment/08-troubleshooting.md) ⭐⭐⭐⭐⭐
+  - Systematic debugging workflow
+  - Common production issues
+  - Essential kubectl commands
+  - Performance troubleshooting
+  - Incident response
+  
+- [11.9. Real-World Case Studies](./11-production-deployment/09-case-studies.md)
+  - E-commerce platform deployment
+  - Microservices migration
+  - Multi-tenant SaaS
+  - Lessons learned
+
+---
+
 ## 🗺️ Lộ Trình Học Đề Xuất
 
 ### 🟢 Beginner (Người Mới Bắt Đầu)
