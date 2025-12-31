@@ -138,11 +138,11 @@ kubectl describe deployment web
 
 ### Use cases
 
-**✅ When to use manual scaling:**
-- 🗓️ **Scheduled events:** Known traffic spike (product launch, sale)
+**✅ Khi nào dùng manual scaling:**
+- 🗓️ **Scheduled events:** Traffic spike đã biết trước (product launch, sale)
 - 🧪 **Testing:** Load testing, stress testing
-- 📊 **Known patterns:** Daily/weekly traffic patterns
-- 🚀 **Quick fix:** Immediate response before HPA kicks in
+- 📊 **Known patterns:** Traffic patterns hàng ngày/tuần
+- 🚀 **Quick fix:** Response nhanh trước khi HPA kích hoạt
 
 **Example:**
 
@@ -159,9 +159,9 @@ kubectl describe deployment web
 
 ## 📊 Horizontal Pod Autoscaler (HPA)
 
-### What is HPA?
+### HPA là gì?
 
-**HPA** automatically adjusts the number of Pods based on metrics (CPU, memory, custom).
+**HPA** tự động điều chỉnh số lượng Pods dựa trên metrics (CPU, memory, custom).
 
 ### Basic Example
 
@@ -186,16 +186,16 @@ spec:
         averageUtilization: 70  # ← Target: 70% CPU
 ```
 
-**How it works:**
+**Cách hoạt động:**
 
 ```
-Current: 2 Pods, CPU: 85% (> 70% target)
+Hiện tại: 2 Pods, CPU: 85% (> 70% target)
     ↓
-HPA calculates: need 3 Pods (85% / 70% * 2 ≈ 2.4 → round up to 3)
+HPA tính toán: cần 3 Pods (85% / 70% * 2 ≈ 2.4 → làm tròn lên 3)
     ↓
-HPA scales Deployment to 3 replicas
+HPA scale Deployment lên 3 replicas
     ↓
-New Pod starts
+Pod mới khởi động
     ↓
 CPU: 60% (< 70% target) ✅
 ```
@@ -328,21 +328,21 @@ Utilization = (150 / 200) * 100% = 75%
 
 ## 📐 Vertical Pod Autoscaler (VPA)
 
-### What is VPA?
+### VPA là gì?
 
-**VPA** automatically adjusts CPU and memory **requests/limits** for Pods.
+**VPA** tự động điều chỉnh **requests/limits** CPU và memory cho Pods.
 
-### When to use VPA vs HPA?
+### Khi nào dùng VPA vs HPA?
 
 **HPA (Horizontal):**
 - ✅ Stateless apps (web servers, APIs)
-- ✅ Can handle many replicas
-- ✅ Fast scaling response
+- ✅ Có thể chạy nhiều replicas
+- ✅ Scale nhanh
 
 **VPA (Vertical):**
 - ✅ Stateful apps (databases, caches)
-- ✅ Cannot easily scale horizontally
-- ✅ Need right-sized resources
+- ✅ Không thể scale horizontal dễ dàng
+- ✅ Cần right-size resources
 
 ### VPA Example
 
@@ -371,9 +371,9 @@ spec:
         memory: 2Gi
 ```
 
-### What happens?
+### Điều gì xảy ra?
 
-**Initial state:**
+**Trạng thái ban đầu:**
 
 ```yaml
 resources:
@@ -382,29 +382,29 @@ resources:
     memory: 128Mi
 ```
 
-**After 1 week of monitoring:**
+**Sau 1 tuần monitoring:**
 
 ```
-VPA observes:
-├── CPU: Actually uses 300-400m (consistently)
-└── Memory: Actually uses 350-450Mi (consistently)
+VPA quan sát:
+├── CPU: Thực tế dùng 300-400m (liên tục)
+└── Memory: Thực tế dùng 350-450Mi (liên tục)
 
-VPA recommends:
-├── cpu: 100m → 500m (increase!)
-└── memory: 128Mi → 512Mi (increase!)
+VPA đề xuất:
+├── cpu: 100m → 500m (tăng lên!)
+└── memory: 128Mi → 512Mi (tăng lên!)
 ```
 
-**VPA applies (updateMode: Auto):**
+**VPA áp dụng (updateMode: Auto):**
 
 ```
 1. Update Pod spec:
    resources:
      requests:
-       cpu: 500m      # ← Updated!
-       memory: 512Mi  # ← Updated!
+       cpu: 500m      # ← Đã cập nhật!
+       memory: 512Mi  # ← Đã cập nhật!
 
-2. Recreate Pods with new resources
-3. New Pods have right-sized resources! ✅
+2. Recreate Pods với resources mới
+3. Pods mới có right-sized resources! ✅
 ```
 
 ### VPA Update Modes
@@ -412,33 +412,33 @@ VPA recommends:
 **Auto:**
 ```yaml
 updateMode: "Auto"
-# ✅ Automatically update and recreate Pods
-# ⚠️  Causes downtime (Pod restart)
-# Use with: Multiple replicas + PodDisruptionBudget
+# ✅ Tự động update và recreate Pods
+# ⚠️  Gây downtime (Pod restart)
+# Dùng với: Multiple replicas + PodDisruptionBudget
 ```
 
 **Off:**
 ```yaml
 updateMode: "Off"
-# ✅ Just recommend, don't apply
-# Use case: Manual review before applying
+# ✅ Chỉ đề xuất, không áp dụng
+# Use case: Review thủ công trước khi áp dụng
 ```
 
 **Initial:**
 ```yaml
 updateMode: "Initial"
-# ✅ Only set resources at Pod creation
-# ⚠️  Won't update existing Pods
-# Use case: Less disruption, but slower adaptation
+# ✅ Chỉ set resources khi tạo Pod
+# ⚠️  Không update Pods đang chạy
+# Use case: Ít disruption hơn, nhưng thích nghi chậm hơn
 ```
 
-### Check VPA recommendations
+### Kiểm tra VPA recommendations
 
 ```bash
-# Get VPA status
+# Xem VPA status
 kubectl get vpa web-vpa -o yaml
 
-# Check recommendations
+# Kiểm tra recommendations
 kubectl describe vpa web-vpa
 ```
 
@@ -514,44 +514,44 @@ vpa:
 
 ## 🌐 Cluster Autoscaler
 
-### What is Cluster Autoscaler?
+### Cluster Autoscaler là gì?
 
-**Cluster Autoscaler** automatically adds or removes **Nodes** to/from the cluster.
+**Cluster Autoscaler** tự động thêm hoặc xóa **Nodes** khỏi cluster.
 
-### When does it trigger?
+### Khi nào được trigger?
 
-**Scale Up (Add Nodes):**
+**Scale Up (Thêm Nodes):**
 ```
-HPA scaled to 50 Pods
+HPA scale lên 50 Pods
     ↓
-Scheduler tries to assign Pods
+Scheduler cố gắng assign Pods
     ↓
-❌ Not enough CPU/memory on existing Nodes!
+❌ Không đủ CPU/memory trên Nodes hiện tại!
     ↓
-Pods stuck in "Pending" state
+Pods bị stuck ở trạng thái "Pending"
     ↓
-Cluster Autoscaler detects
+Cluster Autoscaler phát hiện
     ↓
-Add new Nodes (via cloud provider API)
+Thêm Nodes mới (qua cloud provider API)
     ↓
-Pods scheduled to new Nodes ✅
+Pods được schedule lên Nodes mới ✅
 ```
 
-**Scale Down (Remove Nodes):**
+**Scale Down (Xóa Nodes):**
 ```
-Traffic decreases
+Traffic giảm
     ↓
-HPA scales down to 10 Pods
+HPA scale xuống còn 10 Pods
     ↓
-Some Nodes are underutilized (< 50% usage)
+Một số Nodes bị underutilized (< 50% usage)
     ↓
-Cluster Autoscaler detects
+Cluster Autoscaler phát hiện
     ↓
-Safely evict Pods from underutilized Node
+Evict Pods an toàn khỏi Node underutilized
     ↓
-Remove Node (via cloud provider API)
+Xóa Node (qua cloud provider API)
     ↓
-Save money! 💰
+Tiết kiệm tiền! 💰
 ```
 
 ### Timeline Example
@@ -754,23 +754,25 @@ spec:
         averageValue: "1000"  # ← 1000 req/s per Pod
 ```
 
-**How it works:**
+**Cách hoạt động:**
 
 ```
-Current: 5 Pods
-Total requests: 8000 req/s
-Average per Pod: 8000 / 5 = 1600 req/s
+Metric: http_requests_total = 1000
 
-Target: 1000 req/s per Pod
-desiredReplicas = ceil[5 * (1600 / 1000)] = 8 Pods
+Được enriched với K8s metadata:
+  • pod_name: web-abc123
+  • namespace: production
+  • app: web
+  • version: v1.2.3
+  • tier: frontend
+  • environment: prod
+  • node: node-1
+  • cluster: prod-cluster
+  • team: platform (từ annotation)
 
-HPA scales to 8 Pods! ✅
-New average: 8000 / 8 = 1000 req/s per Pod ✅
+Query trong Datadog/Dynatrace:
+  "Hiển thị http_requests_total với environment=prod VÀ tier=frontend"
 ```
-
-**Requires:**
-- Metrics Server installed
-- Application exposes custom metrics (Prometheus)
 
 ### 3. External Metrics (Queue depth, etc.)
 
@@ -801,33 +803,33 @@ spec:
         averageValue: "30"  # ← 30 messages per Pod
 ```
 
-**Example:**
+**Ví dụ:**
 
 ```
 Queue: 500 messages
-Current: 5 worker Pods
-Average per Pod: 500 / 5 = 100 messages
+Hiện tại: 5 worker Pods
+Average mỗi Pod: 500 / 5 = 100 messages
 
-Target: 30 messages per Pod
+Target: 30 messages mỗi Pod
 desiredReplicas = ceil[5 * (100 / 30)] = 17 Pods
 
-HPA scales to 17 Pods! ✅
-New average: 500 / 17 ≈ 29 messages per Pod ✅
+HPA scale lên 17 Pods! ✅
+Average mới: 500 / 17 ≈ 29 messages mỗi Pod ✅
 ```
 
 ---
 
 ## ⚙️ HPA Behavior Configuration
 
-### Default Behavior
+### Hành Vi Mặc Định
 
-**Problem with default:**
+**Vấn đề với default:**
 
 ```
-Traffic spike → Scale up immediately
-Traffic drop → Scale down immediately
+Traffic spike → Scale up ngay lập tức
+Traffic drop → Scale down ngay lập tức
     ↓
-Flapping! (scale up/down repeatedly)
+Flapping! (scale up/down liên tục)
     ↓
 Pod churn, instability! 🔥
 ```

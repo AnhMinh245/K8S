@@ -298,49 +298,49 @@ template:
 
 ## 🔄 ReplicaSet Reconciliation Loop
 
-### How ReplicaSet Works
+### ReplicaSet Hoạt Động Như Thế Nào
 
-**Continuous loop:**
+**Vòng lặp liên tục:**
 
 ```
 ┌─────────────────────────────────────────────┐
-│  REPLICASET CONTROLLER LOOP                 │
+│  VÒNG LẶP REPLICASET CONTROLLER             │
 └─────────────────────────────────────────────┘
 
-Loop iteration (every 30s default):
+Lần lặp (mỗi 30s default):
 
-1. GET desired replicas
+1. LẤY desired replicas
    ↓
    replicas: 3
 
-2. COUNT current Pods (matching selector)
+2. ĐẾM Pods hiện tại (matching selector)
    ↓
    kubectl get pods -l app=webapp
    ↓
-   Found: 2 Pods
+   Tìm thấy: 2 Pods
 
-3. COMPARE desired vs actual
+3. SO SÁNH desired vs actual
    ↓
    Desired: 3
    Actual: 2
-   Difference: -1 (need 1 more Pod)
+   Chênh lệch: -1 (cần thêm 1 Pod)
 
-4. TAKE ACTION
+4. HÀNH ĐỘNG
    ↓
-   Create 1 Pod from template
+   Tạo 1 Pod từ template
 
-5. WAIT for Pod to be Running
+5. CHỜ Pod Running
    ↓
    Pod created → Pending → Running
 
-6. REPEAT loop
+6. LẶP LẠI
    ↓
-   Next iteration:
+   Lần lặp tiếp:
    Desired: 3
    Actual: 3
-   → No action needed ✓
+   → Không cần action ✓
 
-Loop continues forever...
+Vòng lặp tiếp tục mãi mãi...
 ```
 
 ### Example Scenarios
@@ -688,7 +688,7 @@ kubectl get pods -l app=nginx
 
 ## ⚠️ ReplicaSet Label Matching
 
-### How Selector Works
+### Selector Hoạt Động Như Thế Nào
 
 **ReplicaSet counts ALL Pods với matching labels trong namespace**
 
@@ -739,7 +739,7 @@ Trong thực tế:
 ✓ USE Deployments instead!
 ```
 
-### Why Use Deployments?
+### Tại Sao Dùng Deployments?
 
 ```
 ReplicaSet limitations:
