@@ -767,7 +767,7 @@ Done!
 
 ## 📚 Alternatives to Kubernetes
 
-### When You Don't Need K8s
+### Khi Nào KHÔNG Cần K8s
 
 **1. Docker Compose**
 ```

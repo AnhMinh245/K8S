@@ -385,7 +385,7 @@ spec:
       restartPolicy: Never
 
 # Pod fails → Job creates new Pod
-# Each attempt = New Pod
+# Mỗi lần thử = Pod mới
 
 # Option 2: OnFailure
 spec:
@@ -394,10 +394,10 @@ spec:
       restartPolicy: OnFailure
 
 # Pod fails → Restart container in SAME Pod
-# All attempts in same Pod
+# Tất cả attempts trong cùng Pod
 ```
 
-**When to use what:**
+**Khi nào dùng cái gì:**
 
 ```
 restartPolicy: Never
@@ -487,9 +487,9 @@ kubectl describe job timeout-job
 ```
 CronJob = Scheduled Tasks Manager
 
-Every day at 2 AM: Run backup
-Every Monday at 9 AM: Send weekly report
-Every 15 minutes: Cleanup temp files
+Mỗi ngày lúc 2 AM: Chạy backup
+Mỗi thứ Hai lúc 9 AM: Gửi báo cáo tuần
+Mỗi 15 phút: Cleanup temp files
 
 Uses standard cron syntax:
 * * * * *

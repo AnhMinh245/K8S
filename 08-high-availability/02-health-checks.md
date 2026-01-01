@@ -499,12 +499,12 @@ spec:
 
 ## 🔧 Probe Methods
 
-### 1. HTTP GET (Most Common)
+### 1. HTTP GET (Phổ Biến Nhất)
 
-**When to use:**
+**Khi nào dùng:**
 - ✅ Web apps, APIs
 - ✅ Apps with HTTP endpoints
-- ✅ Most flexible (custom logic)
+- ✅ Linh hoạt nhất (custom logic)
 
 **Configuration:**
 
@@ -521,7 +521,7 @@ httpGet:
 
 **Success criteria:**
 - ✅ HTTP status code: 200-399
-- ❌ Any other code (400+, 500+)
+- ❌ Bất kỳ code nào khác (400+, 500+)
 - ❌ Timeout
 
 **Example endpoint:**
@@ -552,7 +552,7 @@ app.get('/ready', (req, res) => {
 **When to use:**
 - ✅ Databases (MySQL, PostgreSQL, Redis)
 - ✅ Message queues (RabbitMQ, Kafka)
-- ✅ Any TCP service
+- ✅ Bất kỳ TCP service nào
 - ✅ No HTTP endpoint available
 
 **Configuration:**
@@ -665,7 +665,7 @@ readinessProbe:
 
 ## ⚙️ Configuration Parameters
 
-### All Parameters Explained
+### Giải Thích Tất Cả Parameters
 
 ```yaml
 livenessProbe:
@@ -1079,7 +1079,7 @@ kubectl logs web
 
 **Symptoms:**
 - Users get errors
-- Some requests succeed, some fail
+- Một số requests thành công, một số fail
 
 **Debug:**
 ```bash

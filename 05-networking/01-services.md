@@ -561,7 +561,7 @@ curl http://api.production.svc.cluster.local
 
 ## 🔗 Endpoints
 
-### What are Endpoints?
+### Endpoints Là Gì?
 
 **Endpoints** = List of Pod IPs that Service routes to
 

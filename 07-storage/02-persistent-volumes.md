@@ -530,7 +530,7 @@ spec:
 
 ## 🔄 Reclaim Policies
 
-### What Happens When PVC Deleted?
+### Điều Gì Xảy Ra Khi Xóa PVC?
 
 **Three policies:**
 

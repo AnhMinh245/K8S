@@ -138,7 +138,7 @@ kubectl logs limitations:
 
 ### Pattern 1: Node-Level Logging (DaemonSet)
 
-**Most common pattern for Datadog, Dynatrace, ELK:**
+**Pattern phổ biến nhất cho Datadog, Dynatrace, ELK:**
 
 ```yaml
 apiVersion: apps/v1
@@ -215,8 +215,8 @@ spec:
     emptyDir: {}
 ```
 
-**When to use:**
-- App writes logs to files (not stdout)
+**Khi nào dùng:**
+- App ghi logs vào files (không phải stdout)
 - Need special parsing per app
 - Different log destinations per app
 
@@ -370,7 +370,7 @@ containerLogMaxFiles: 5     # Keep 5 rotated files
 /var/log/pods/.../nginx/1.log     (rotated, 10MB)
 /var/log/pods/.../nginx/2.log     (rotated, 10MB)
 ...
-/var/log/pods/.../nginx/5.log     (oldest, will be deleted)
+/var/log/pods/.../nginx/5.log     (cũ nhất, sẽ bị xóa)
 ```
 
 ### Node Disk Pressure
@@ -529,8 +529,8 @@ kubectl exec -it <log-collector-pod> -- cat /etc/fluent/fluent.conf
 ```
 Example calculation:
   • 100 Pods
-  • Each Pod: 10 log lines/second
-  • Each line: 200 bytes average
+  • Mỗi Pod: 10 log lines/second
+  • Mỗi line: 200 bytes trung bình
   • Retention: 7 days
 
 Daily volume:
@@ -559,7 +559,7 @@ Datadog/Dynatrace pricing often based on:
 
 1. **Logs:** App writes to stdout/stderr → Container runtime captures → /var/log/pods/
 2. **kubectl logs:** Limited, need centralized logging
-3. **DaemonSet pattern:** Most common for log collection
+3. **DaemonSet pattern:** Phổ biến nhất cho log collection
 4. **Metadata enrichment:** Labels/annotations → log tags
 5. **RBAC:** Log collector needs read Pod/Namespace permissions
 6. **Structured logging:** JSON format best for parsing

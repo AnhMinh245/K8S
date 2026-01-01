@@ -1093,7 +1093,7 @@ kubectl get hpa web-hpa -w
 
 ### Lab 2: HPA with custom metrics (HTTP requests)
 
-**Requires:** Prometheus + Prometheus Adapter installed
+**Yêu cầu:** Đã cài Prometheus + Prometheus Adapter
 
 ```bash
 # Install Prometheus Adapter

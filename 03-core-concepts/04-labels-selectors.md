@@ -38,7 +38,7 @@ Labels/Tags:
 └── 🏷️ project: e-commerce
 
 Use cases:
-✓ Find all engineers: department=engineering
+✓ Tìm tất cả engineers: department=engineering
 ✓ Find senior devs: level=senior
 ✓ Find Hanoi team: location=hanoi
 ✓ Find payments team: team=payments
@@ -373,7 +373,7 @@ Service load balances to: webapp-1, webapp-2
 | **Structure** | Simple key-value | Can be complex (JSON, etc.) |
 | **Query** | Yes (kubectl -l) | No |
 
-### When to Use What
+### Khi Nào Dùng Cái Gì
 
 **Use Labels for:**
 ```yaml
@@ -479,19 +479,19 @@ labels:
 ### DO ✅
 
 ```yaml
-✅ Use meaningful, consistent names
+✅ Dùng tên có nghĩa, nhất quán
 labels:
   environment: production    # Good: Clear
   tier: frontend            # Good: Standard term
 
-✅ Use multiple dimensions
+✅ Dùng nhiều dimensions
 labels:
   app: webapp
   tier: frontend
   environment: production
   # Multiple query dimensions
 
-✅ Use prefixes for organization
+✅ Dùng prefixes cho organization
 labels:
   company.com/team: alpha
   company.com/cost-center: eng
@@ -499,10 +499,10 @@ labels:
 ✅ Document labeling standards
 # Create org-wide label guidelines
 
-✅ Use labels for selection
+✅ Dùng labels để selection
 # Labels for kubectl queries, Service selectors
 
-✅ Use annotations for metadata
+✅ Dùng annotations cho metadata
 annotations:
   build-timestamp: "2024-01-01"
   # Non-selectable metadata
